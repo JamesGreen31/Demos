@@ -137,8 +137,7 @@ export default function AStarPage() {
 
     const renderGridCells = () => {
         return (
-            <div className={`grid grid-cols-8 gap-2 px-4 py-4 border-4`}>
-                {Array.from({ length: totalCells }, (_, index) => {
+<div className={`grid grid-cols-8 gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-4 border-2 sm:border-4`}>                {Array.from({ length: totalCells }, (_, index) => {
                     const row = Math.floor(index / gridSize);
                     const col = index % gridSize;
                     const cellWeight = cellWeights[index];
@@ -146,30 +145,30 @@ export default function AStarPage() {
 
                     if(row == gridSize -1 && col == 0){
                         return (
-                            <div key={index} className="w-16 h-16 rounded-xl flex items-center justify-center bg-[#2e7a34]">
-                                <span className="text-sm font-semibold text-white">{`START`}</span>
+                            <div key={index} className="w-16 h-16 sm: w-10 sm: h-10 rounded-xl flex items-center justify-center bg-[#2e7a34]">
+                                <span className="text-sm sm: text-[0.7rem] font-semibold text-white">{`START`}</span>
                             </div>
                         );
                     }
                     if(row == 0 && col == gridSize -1){
                         return (
-                            <div key={index} className="w-16 h-16 rounded-xl flex items-center justify-center bg-[#a4832f]">
-                                <span className="text-sm font-semibold text-white">{`GOAL`}</span>
+                            <div key={index} className="w-16 h-16 sm: w-10 sm: h-10 rounded-xl flex items-center justify-center bg-[#a4832f]">
+                                <span className="text-sm sm: text-[0.7rem] font-semibold text-white">{`GOAL`}</span>
                             </div>
                         );
                     }
                     return (
                         <button 
                             key={index} 
-                            className={`w-16 h-16 ${
+                            className={`w-16 h-16 sm: w-10 sm: h-10 ${
                                 isInPath ? 'bg-blue-500' :
                                 cellStates[index] ? 'bg-red-500' : 'bg-gray-300'
                             } rounded-xl flex flex-col items-center justify-center`}
                             onClick={() => toggleCell(index)}
                         >
-                            <span className="text-xs font-semibold">{`(${row},${col})`}</span>
-                            <span className="text-xs">{`g: ${cellWeight?.gWeight ?? 0}`}</span>
-                            <span className="text-xs">{`h: ${cellWeight?.hWeight ?? 0}`}</span>
+                            <span className="sm: text-[0.6rem] h-1/3 text-xs font-semibold">{`(${row},${col})`}</span>
+                            <span className="sm: text-[0.6rem] h-1/3 text-xs">{`g: ${cellWeight?.gWeight ?? 0}`}</span>
+                            <span className="sm: text-[0.6rem] h-1/3 text-xs">{`h: ${cellWeight?.hWeight ?? 0}`}</span>
                         </button>
                     );
                 })}
