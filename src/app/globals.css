@@ -1,13 +1,19 @@
+/*
+ * Global stylesheet loaded on every page. Tailwind's `@tailwind` directives
+ * pull in base styles, component classes and utility classes respectively.
+ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* CSS variables controlling font colour and gradient background */
 :root {
   --foreground-rgb: 50, 50, 50;
   --background-start-rgb: 236, 253, 255;
   --background-end-rgb: 255, 255, 255;
 }
 
+/* Apply global text colour and a subtle gradient background */
 body {
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
@@ -18,6 +24,7 @@ body {
     rgb(var(--background-start-rgb));
 }
 
+/* Additional Tailwind utility classes */
 @layer utilities {
   .text-balance {
     text-wrap: balance;
