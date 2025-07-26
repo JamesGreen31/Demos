@@ -3,9 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 50, 50, 50;
-  --background-start-rgb: 236, 253, 255;
-  --background-end-rgb: 255, 255, 255;
+  /* Sleek dark color palette */
+  --foreground-rgb: 240, 240, 240;
+  --background-start-rgb: 15, 23, 42; /* slate-900 */
+  --background-end-rgb: 30, 41, 59;   /* slate-800 */
 }
 
 body {
