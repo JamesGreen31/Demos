@@ -1,4 +1,6 @@
 {
+  // Tell editors and tooling how to resolve the `@/` alias so imports like
+  // `@/components/Button` point to the `src/` directory.
   "compilerOptions": {
     "paths": {
       "@/*": ["./src/*"]
