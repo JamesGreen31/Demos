@@ -137,7 +137,7 @@ export default function AStarPage() {
 
     const renderGridCells = () => {
         return (
-<div className={`grid grid-cols-8 gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-4 border-2 sm:border-4`}>                {Array.from({ length: totalCells }, (_, index) => {
+<div className={`grid grid-cols-8 gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-4 border-2 sm:border-4 border-slate-600`}>                {Array.from({ length: totalCells }, (_, index) => {
                     const row = Math.floor(index / gridSize);
                     const col = index % gridSize;
                     const cellWeight = cellWeights[index];
@@ -145,14 +145,14 @@ export default function AStarPage() {
 
                     if(row == gridSize -1 && col == 0){
                         return (
-                            <div key={index} className="w-16 h-16 sm: w-10 sm: h-10 rounded-xl flex items-center justify-center bg-[#2e7a34]">
+                            <div key={index} className="w-16 h-16 sm: w-10 sm: h-10 rounded-xl flex items-center justify-center bg-green-600">
                                 <span className="text-sm sm: text-[0.7rem] font-semibold text-white">{`START`}</span>
                             </div>
                         );
                     }
                     if(row == 0 && col == gridSize -1){
                         return (
-                            <div key={index} className="w-16 h-16 sm: w-10 sm: h-10 rounded-xl flex items-center justify-center bg-[#a4832f]">
+                            <div key={index} className="w-16 h-16 sm: w-10 sm: h-10 rounded-xl flex items-center justify-center bg-yellow-600">
                                 <span className="text-sm sm: text-[0.7rem] font-semibold text-white">{`GOAL`}</span>
                             </div>
                         );
@@ -161,9 +161,9 @@ export default function AStarPage() {
                         <button 
                             key={index} 
                             className={`w-16 h-16 sm: w-10 sm: h-10 ${
-                                isInPath ? 'bg-blue-500' :
-                                cellStates[index] ? 'bg-red-500' : 'bg-gray-300'
-                            } rounded-xl flex flex-col items-center justify-center`}
+                                isInPath ? 'bg-indigo-500' :
+                                cellStates[index] ? 'bg-rose-600' : 'bg-slate-700'
+                            } rounded-xl flex flex-col items-center justify-center text-white`}
                             onClick={() => toggleCell(index)}
                         >
                             <span className="sm: text-[0.6rem] h-1/3 text-xs font-semibold">{`(${row},${col})`}</span>
@@ -176,20 +176,20 @@ export default function AStarPage() {
         );
     }
     return (
-        <main className="flex min-h-screen flex-col items-center m-8">
-        <h1 className="text-4xl font-bold m-4">A* Algorithm Demo</h1>
+        <main className="flex min-h-screen flex-col items-center m-8 bg-slate-900">
+        <h1 className="text-4xl font-bold m-4 text-white">A* Algorithm Demo</h1>
         <div id="game" className="flex flex-col md:flex-row items-center md:items-start justify-center w-full">
-            <div className="flex flex-col m-4 p-4 w-full md:w-64">
-                <h2 className="font-bold rounded-lg text-xl w-full p-4">Directions</h2>
-                <ol className="list-decimal">
-                    <li className="p-2">Choose cells to avoid</li>
-                    <li className="p-2">Click reset when finished</li>
+            <div className="flex flex-col gap-2 m-4 p-4 w-full md:w-64 bg-slate-800 rounded-lg text-white">
+                <h2 className="font-bold rounded-lg text-xl w-full p-4 text-white">Directions</h2>
+                <ol className="list-decimal pl-4 text-sm">
+                    <li className="p-1">Choose cells to avoid</li>
+                    <li className="p-1">Click reset when finished</li>
                 </ol>
-                <button className="font-bold rounded-lg text-lg w-full h-16 bg-[#2e7a34] text-[#ffffff] justify-center hover:bg-[#89c48e] hover:text-[#ffffff] active:bg-[#616c7e] mt-4"
+                <button className="font-bold rounded-lg text-lg w-full h-16 bg-green-600 text-white justify-center hover:bg-green-500 active:bg-green-700 mt-4"
                         onClick={solvePath}>Solve</button>
-                <button className="font-bold rounded-lg text-lg w-full h-16 bg-[#3380fb] text-[#ffffff] justify-center hover:bg-[#6da5ff] hover:text-[#ffffff] active:bg-[#616c7e] mt-4"
+                <button className="font-bold rounded-lg text-lg w-full h-16 bg-indigo-500 text-white justify-center hover:bg-indigo-400 active:bg-indigo-600 mt-4"
                         onClick={resetCells}>Reset</button>
-                <button className="font-bold rounded-lg text-lg w-full h-16 bg-[#3380fb] text-[#ffffff] justify-center hover:bg-[#6da5ff] hover:text-[#ffffff] active:bg-[#616c7e] mt-4"
+                <button className="font-bold rounded-lg text-lg w-full h-16 bg-indigo-500 text-white justify-center hover:bg-indigo-400 active:bg-indigo-600 mt-4"
                         onClick={handleRandomizeCellWeights}>Randomize Cell Distances</button>
                 <div className="mt-4 w-full">
                     <p className="text-red-500 text-left break-words">{messages}</p>
