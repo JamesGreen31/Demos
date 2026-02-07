@@ -70,6 +70,13 @@ export default function Home() {
 
 
         <DemoCard
+          route="dead-center"
+          title="Dead Center"
+          description="Defend the cabin by sequencing card plays and zombie kills"
+          previewImage="/loot-the-loop-preview.svg"
+        />
+
+        <DemoCard
           route="loot-the-loop"
           title="Loot the Loop"
           description="Raid a looping temple, collect jewels, and dodge traps"
