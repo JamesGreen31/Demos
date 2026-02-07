@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-const SUITS = ['♠', '♥', '♦', '♣'];
-
 function shuffle(cards) {
   const next = [...cards];
   for (let i = next.length - 1; i > 0; i -= 1) {
@@ -17,17 +15,17 @@ function createTempleDeck() {
   let id = 0;
   const deck = [];
 
-  for (const suit of SUITS) {
-    deck.push({ id: id += 1, rank: 'A', suit, type: 'jewel', faceUp: false });
+  for (let copy = 0; copy < 4; copy += 1) {
+    deck.push({ id: id += 1, rank: 'A', type: 'jewel', faceUp: false });
     for (let value = 2; value <= 10; value += 1) {
-      deck.push({ id: id += 1, rank: String(value), suit, type: 'path', value, faceUp: false });
+      deck.push({ id: id += 1, rank: String(value), type: 'path', value, faceUp: false });
     }
-    deck.push({ id: id += 1, rank: 'J', suit, type: 'trap', faceUp: false });
-    deck.push({ id: id += 1, rank: 'Q', suit, type: 'trap', faceUp: false });
-    deck.push({ id: id += 1, rank: 'K', suit, type: 'trap', faceUp: false });
+    deck.push({ id: id += 1, rank: 'J', type: 'trap', faceUp: false });
+    deck.push({ id: id += 1, rank: 'Q', type: 'trap', faceUp: false });
+    deck.push({ id: id += 1, rank: 'K', type: 'trap', faceUp: false });
   }
 
-  deck.push({ id: id += 1, rank: 'Joker', suit: '', type: 'exit', faceUp: false });
+  deck.push({ id: id += 1, rank: 'Joker', type: 'exit', faceUp: false });
   return shuffle(deck);
 }
 
@@ -51,10 +49,10 @@ function cardLabel(card, canEscape) {
 
 function describeCard(card) {
   if (!card.faceUp) return 'Hidden';
-  if (card.type === 'trap') return `Trap ${card.rank}${card.suit}`;
-  if (card.type === 'jewel') return `Jewel ${card.rank}${card.suit}`;
+  if (card.type === 'trap') return `Trap ${card.rank}`;
+  if (card.type === 'jewel') return `Jewel ${card.rank}`;
   if (card.type === 'exit') return 'Temple exit';
-  return `Path ${card.rank}${card.suit}`;
+  return `Path ${card.rank}`;
 }
 
 function availableExploreValues(deck) {
@@ -173,7 +171,7 @@ export default function LootTheLoopPage() {
     const nextNotes = notes.filter((_, i) => i !== index).map((card) => ({ ...card }));
     const nextDeck = [restored, ...deck.map((card) => ({ ...card }))];
     setReturnLocked(true);
-    applyAndCheck(nextDeck, nextNotes, score.map((card) => ({ ...card })), `Returned ${restored.rank}${restored.suit} to the top.`);
+    applyAndCheck(nextDeck, nextNotes, score.map((card) => ({ ...card })), `Returned ${restored.rank} to the top.`);
   }
 
   function handleExplore(value) {
@@ -202,7 +200,7 @@ export default function LootTheLoopPage() {
     if (landed?.faceUp && (landed.type === 'jewel' || landed.type === 'path')) {
       const collected = nextDeck.shift();
       nextScore.push(collected);
-      nextMessage = collected.type === 'jewel' ? '💎 You secured a royal jewel!' : `Collected path trinket ${collected.rank}${collected.suit}.`;
+      nextMessage = collected.type === 'jewel' ? '💎 You secured a royal jewel!' : `Collected path trinket ${collected.rank}.`;
     }
 
     if (landed?.faceUp && landed.type === 'exit') {
@@ -465,7 +463,6 @@ export default function LootTheLoopPage() {
                 title="Return this path to top"
               >
                 Return {card.rank}
-                {card.suit}
               </button>
             ))}
           </div>
