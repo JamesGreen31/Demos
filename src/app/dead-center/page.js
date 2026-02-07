@@ -514,7 +514,7 @@ export default function DeadCenterPage() {
                     type="button"
                     onClick={() => playOnPile(pileIndex)}
                     disabled={!isPlayable}
-                    className={`h-20 rounded border p-1 text-sm ${getCellClasses(topCard)} ${isPlayable ? 'ring-2 ring-blue-400' : ''}`}
+                    className={`h-20 rounded border p-1 text-sm ${getCellClasses(topCard)} ${isPlayable ? 'ring-2 ring-blue-400 hover:ring-yellow-400' : ''}`}
                     title={`Pile ${pileIndex + 1} (${state.cabinCards[pileIndex].length} cards)`}
                   >
                     <div className="font-semibold">{cardText(topCard)}</div>
@@ -526,6 +526,11 @@ export default function DeadCenterPage() {
               if (zombie) {
                 const canReveal = isGameStarted && state.phase === 'reveal' && !zombie.revealed && !zombie.dead;
                 const canAttack = isGameStarted && state.phase === 'attack' && state.killableTargets.includes(zombie.id);
+                const zombieOutlineClasses = canReveal
+                  ? 'ring-2 ring-slate-400 hover:ring-yellow-400'
+                  : canAttack
+                    ? 'ring-2 ring-blue-400 hover:ring-red-500'
+                    : '';
                 return (
                   <button
                     key={`${x}-${y}`}
@@ -535,7 +540,7 @@ export default function DeadCenterPage() {
                       if (canAttack) resolveAttack(zombie.id);
                     }}
                     disabled={!canReveal && !canAttack}
-                    className={`h-20 rounded border p-1 text-sm ${zombie.dead ? 'bg-emerald-100 border-emerald-300' : 'bg-slate-100 border-slate-300'} ${canReveal || canAttack ? 'ring-2 ring-slate-400' : ''}`}
+                    className={`h-20 rounded border p-1 text-sm ${zombie.dead ? 'bg-emerald-100 border-emerald-300' : 'bg-slate-100 border-slate-300'} ${zombieOutlineClasses}`}
                   >
                     {!zombie.revealed && !zombie.dead && <span className="text-xl">🂠</span>}
                     {zombie.revealed && !zombie.dead && (
