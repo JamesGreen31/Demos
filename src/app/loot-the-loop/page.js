@@ -268,6 +268,10 @@ export default function LootTheLoopPage() {
             after collecting all four jewels to win.
           </li>
           <li>
+            The exit appears as a <strong>stone (🪨)</strong> until all four jewels are collected. Once you
+            have all jewels, it changes to <strong>stairs (🪜)</strong> and you can escape by landing on it.
+          </li>
+          <li>
             <strong>Undo</strong> is available for actions after the latest reveal, and is reset when you use
             <strong> Look Around</strong>.
           </li>
