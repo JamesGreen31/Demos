@@ -1,10 +1,5 @@
 <svg width="800" height="500" viewBox="0 0 800 500" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect width="800" height="500" rx="28" fill="#E0F2FE"/>
-  <rect x="42" y="42" width="716" height="90" rx="18" fill="#ffffff"/>
-  <text x="70" y="92" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#0F172A">Dynamic Programming</text>
-  <text x="70" y="118" font-family="Arial, sans-serif" font-size="20" fill="#334155">Coin Change Table</text>
-
-  <g>
     <rect x="60" y="170" width="90" height="80" rx="10" fill="#FFFFFF" stroke="#94A3B8"/>
     <rect x="165" y="170" width="90" height="80" rx="10" fill="#DCFCE7" stroke="#22C55E"/>
     <rect x="270" y="170" width="90" height="80" rx="10" fill="#FFFFFF" stroke="#94A3B8"/>
@@ -25,8 +20,4 @@
     <text x="412" y="232" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#1E40AF">3</text>
     <text x="517" y="232" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#0F172A">4</text>
     <text x="622" y="232" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#0F172A">5</text>
-  </g>
-
-  <text x="60" y="315" font-family="Arial, sans-serif" font-size="22" fill="#334155">Build from small amounts → reuse subproblem answers → optimal result</text>
-  <text x="60" y="360" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#0F172A">Target: 18, Minimum coins: 3</text>
 </svg>
