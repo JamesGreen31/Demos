@@ -7,12 +7,17 @@ function getDemoHref(route) {
   return process.env.NODE_ENV === 'production' ? `/Demos/${route}` : `/${route}`;
 }
 
+function getAssetPath(path) {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return process.env.NODE_ENV === 'production' ? `/Demos${normalizedPath}` : normalizedPath;
+}
+
 function DemoCard({ route, title, description, previewImage }) {
   return (
     <a href={getDemoHref(route)} target="_blank" className={previewCardClassName}>
       <div
         className="absolute inset-0 bg-center bg-cover opacity-30 group-hover:opacity-70 transition-opacity duration-300"
-        style={{ backgroundImage: `url('${previewImage}')` }}
+        style={{ backgroundImage: `url('${getAssetPath(previewImage)}')` }}
         aria-hidden="true"
       />
       <div
