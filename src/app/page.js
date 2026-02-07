@@ -67,6 +67,14 @@ export default function Home() {
           description="Explore coin-change optimization with DP"
           previewImage="/dynamic-programming-preview.svg"
         />
+
+
+        <DemoCard
+          route="loot-the-loop"
+          title="Loot the Loop"
+          description="Raid a looping temple, collect jewels, and dodge traps"
+          previewImage="/loot-the-loop-preview.svg"
+        />
       </div>
     </main>
   );
