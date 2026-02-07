@@ -73,7 +73,7 @@ export default function Home() {
           route="dead-center"
           title="Dead Center"
           description="Defend the cabin by sequencing card plays and zombie kills"
-          previewImage="/loot-the-loop-preview.svg"
+          previewImage="/dead-center-preview.svg"
         />
 
         <DemoCard
