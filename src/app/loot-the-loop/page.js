@@ -77,7 +77,9 @@ export default function LootTheLoopPage() {
   const [score, setScore] = useState([]);
   const [gameState, setGameState] = useState('playing');
   const [message, setMessage] = useState('Look around to reveal the first two rooms.');
-  const [undoSnapshot, setUndoSnapshot] = useState(null);
+  const [undoStack, setUndoStack] = useState([]);
+  const [hoveredExploreValue, setHoveredExploreValue] = useState(null);
+  const [isMarkHovered, setIsMarkHovered] = useState(false);
 
   const jewelsCollected = useMemo(
     () => score.filter((card) => card.type === 'jewel').length,
@@ -92,7 +94,14 @@ export default function LootTheLoopPage() {
     setScore([]);
     setGameState('playing');
     setMessage('Look around to reveal the first two rooms.');
-    setUndoSnapshot(null);
+    setUndoStack([]);
+    setHoveredExploreValue(null);
+    setIsMarkHovered(false);
+  }
+
+  function pushUndoSnapshot() {
+    const snapshot = cloneStateSnapshot({ deck, notes, score, gameState, message });
+    setUndoStack((prev) => [...prev, snapshot]);
   }
 
   function applyAndCheck(nextDeck, nextNotes, nextScore, nextMessage) {
@@ -104,7 +113,6 @@ export default function LootTheLoopPage() {
       setScore(nextScore);
       setMessage('No legal actions remain. You are trapped in the temple.');
       setGameState('lost');
-      setUndoSnapshot(null);
       return;
     }
 
@@ -112,7 +120,6 @@ export default function LootTheLoopPage() {
     setNotes(nextNotes);
     setScore(nextScore);
     setMessage(nextMessage);
-    setUndoSnapshot(null);
   }
 
   function handleLookAround() {
@@ -125,6 +132,7 @@ export default function LootTheLoopPage() {
       nextDeck[1].faceUp = true;
     }
 
+    setUndoStack([]);
     applyAndCheck(nextDeck, notes, score, 'You scan ahead and map more of the temple loop.');
   }
 
@@ -132,6 +140,7 @@ export default function LootTheLoopPage() {
     if (gameState !== 'playing') return;
     if (!deck[0]?.faceUp || deck[0].type !== 'path' || notes.length >= 3) return;
 
+    pushUndoSnapshot();
     const nextDeck = deck.slice(1).map((card) => ({ ...card }));
     const nextNotes = [...notes.map((card) => ({ ...card })), { ...deck[0], faceUp: true }];
     applyAndCheck(nextDeck, nextNotes, score.map((card) => ({ ...card })), 'Path marked in your notes.');
@@ -141,6 +150,7 @@ export default function LootTheLoopPage() {
     if (gameState !== 'playing') return;
     if (index < 0 || index >= notes.length) return;
 
+    pushUndoSnapshot();
     const restored = { ...notes[index], faceUp: true };
     const nextNotes = notes.filter((_, i) => i !== index).map((card) => ({ ...card }));
     const nextDeck = [restored, ...deck.map((card) => ({ ...card }))];
@@ -151,7 +161,7 @@ export default function LootTheLoopPage() {
     if (gameState !== 'playing') return;
     if (!exploreValues.includes(value) || value > deck.length) return;
 
-    const snapshot = cloneStateSnapshot({ deck, notes, score, gameState, message });
+    pushUndoSnapshot();
 
     const moved = deck.slice(0, value).map((card) => ({ ...card }));
     const nextDeck = [...deck.slice(value).map((card) => ({ ...card })), ...moved];
@@ -165,8 +175,7 @@ export default function LootTheLoopPage() {
       setNotes(notes.map((card) => ({ ...card })));
       setScore(nextScore);
       setGameState('lost');
-      setMessage('💀 You landed on a trap. Undo is available because no new information was revealed.');
-      setUndoSnapshot(snapshot);
+      setMessage('💀 You landed on a trap. Undo is available.');
       return;
     }
 
@@ -184,7 +193,6 @@ export default function LootTheLoopPage() {
         setScore(nextScore);
         setGameState('won');
         setMessage('🪜 You found the exit with all four jewels and escaped!');
-        setUndoSnapshot(null);
         return;
       }
       nextMessage = 'You found the exit, but it is still sealed without all four jewels.';
@@ -193,15 +201,26 @@ export default function LootTheLoopPage() {
     applyAndCheck(nextDeck, notes.map((card) => ({ ...card })), nextScore, nextMessage);
   }
 
-  function handleUndoFatalMove() {
-    if (!undoSnapshot) return;
-    setDeck(undoSnapshot.deck.map((card) => ({ ...card })));
-    setNotes(undoSnapshot.notes.map((card) => ({ ...card })));
-    setScore(undoSnapshot.score.map((card) => ({ ...card })));
-    setGameState('playing');
-    setMessage('Fatal move rewound. Choose a safer action.');
-    setUndoSnapshot(null);
+  function getExploreLandingIndex(value) {
+    if (!deck.length) return null;
+    return value % deck.length;
   }
+
+  function handleUndoMove() {
+    const snapshot = undoStack[undoStack.length - 1];
+    if (!snapshot) return;
+    setDeck(snapshot.deck.map((card) => ({ ...card })));
+    setNotes(snapshot.notes.map((card) => ({ ...card })));
+    setScore(snapshot.score.map((card) => ({ ...card })));
+    setGameState(snapshot.gameState);
+    setMessage(snapshot.message);
+    setUndoStack((prev) => prev.slice(0, -1));
+    setHoveredExploreValue(null);
+    setIsMarkHovered(false);
+  }
+
+  const hoveredExploreLandingIndex = hoveredExploreValue ? getExploreLandingIndex(hoveredExploreValue) : null;
+  const markCaptureIndex = isMarkHovered && deck[0]?.faceUp && deck[0].type === 'path' && notes.length < 3 ? 0 : null;
 
   return (
     <main className="min-h-screen p-6 md:p-8 flex flex-col items-center gap-5">
@@ -217,15 +236,63 @@ export default function LootTheLoopPage() {
 
       <h1 className="text-3xl font-bold text-center">Loot the Loop</h1>
 
+      <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold mb-3">What is Loot the Loop?</h2>
+        <p className="text-slate-700 mb-3">
+          Loot the Loop is a solo route-planning puzzle. You move through a circular temple deck,
+          reveal information gradually, and try to collect all four jewels before escaping.
+        </p>
+        <p className="text-slate-700">
+          The deck&apos;s top card is your current room. Movement always wraps around the loop, so each
+          action changes what you can safely reach next.
+        </p>
+      </section>
+
+      <section className="w-full max-w-6xl rounded-xl border border-blue-200 bg-[#eef6ff] p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold mb-3">How to play</h2>
+        <ul className="list-disc pl-5 space-y-2 text-slate-700">
+          <li>
+            Start with <strong>Look Around</strong> to flip the top two rooms. This is the only action that
+            reveals new hidden information.
+          </li>
+          <li>
+            Use <strong>Explore X</strong> where X comes from visible number rooms in the top two cards.
+            Movement counts from the top card.
+          </li>
+          <li>
+            Use <strong>Mark Path</strong> to save the current top number room (up to 3), then
+            <strong> Return</strong> a saved path to the top when you need to adjust timing.
+          </li>
+          <li>
+            Collect 💎 jewels and other face-up loot by landing on them. Avoid 💀 traps. Reach the exit
+            after collecting all four jewels to win.
+          </li>
+          <li>
+            The exit appears as a <strong>stone (🪨)</strong> until all four jewels are collected. Once you
+            have all jewels, it changes to <strong>stairs (🪜)</strong> and you can escape by landing on it.
+          </li>
+          <li>
+            <strong>Undo</strong> is available for actions after the latest reveal, and is reset when you use
+            <strong> Look Around</strong>.
+          </li>
+        </ul>
+      </section>
+
       <section className="w-full max-w-6xl grid gap-4 lg:grid-cols-[2fr_1fr]">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-xl font-semibold mb-3">Temple Loop (top first)</h2>
-          <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-10 gap-2">
-            {deck.slice(0, 20).map((card, index) => (
+          <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-13 gap-2">
+            {deck.map((card, index) => (
               <div
                 key={card.id}
                 className={`rounded-md border p-2 text-center text-sm ${
                   index === 0 ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-slate-50'
+                } ${
+                  index === hoveredExploreLandingIndex
+                    ? 'ring-2 ring-violet-400'
+                    : index === markCaptureIndex
+                    ? 'ring-2 ring-emerald-400'
+                    : ''
                 }`}
                 title={describeCard(card)}
               >
@@ -235,7 +302,7 @@ export default function LootTheLoopPage() {
             ))}
           </div>
           <p className="text-xs text-slate-500 mt-3">
-            Showing first 20 rooms of {deck.length} remaining in the loop.
+            Showing all {deck.length} rooms currently remaining in the loop.
           </p>
         </div>
 
@@ -245,13 +312,13 @@ export default function LootTheLoopPage() {
           <p>Jewels: <strong>{jewelsCollected}/4</strong></p>
           <p>Looted cards: <strong>{score.length}</strong></p>
           <p className="text-sm text-slate-700">{message}</p>
-          {gameState === 'lost' && undoSnapshot && (
+          {undoStack.length > 0 && (
             <button
               type="button"
-              onClick={handleUndoFatalMove}
-              className="w-full rounded bg-amber-500 px-3 py-2 font-semibold text-white hover:bg-amber-600"
+              onClick={handleUndoMove}
+              className="w-full rounded bg-blue-600 px-3 py-2 font-semibold text-white hover:bg-blue-500"
             >
-              Undo fatal move
+              Undo move
             </button>
           )}
         </div>
@@ -264,7 +331,7 @@ export default function LootTheLoopPage() {
             type="button"
             onClick={handleLookAround}
             disabled={gameState !== 'playing' || !deck[0] || deck[0].faceUp}
-            className="rounded bg-sky-600 px-3 py-2 text-white disabled:opacity-40"
+            className="rounded bg-blue-600 px-3 py-2 text-white hover:bg-blue-500 disabled:opacity-40"
           >
             Look Around
           </button>
@@ -272,10 +339,12 @@ export default function LootTheLoopPage() {
           <button
             type="button"
             onClick={handleMarkPath}
+            onMouseEnter={() => setIsMarkHovered(true)}
+            onMouseLeave={() => setIsMarkHovered(false)}
             disabled={
               gameState !== 'playing' || !deck[0]?.faceUp || deck[0].type !== 'path' || notes.length >= 3
             }
-            className="rounded bg-emerald-600 px-3 py-2 text-white disabled:opacity-40"
+            className="rounded bg-slate-700 px-3 py-2 text-white hover:bg-slate-600 disabled:opacity-40"
           >
             Mark Path
           </button>
@@ -285,8 +354,10 @@ export default function LootTheLoopPage() {
               key={value}
               type="button"
               onClick={() => handleExplore(value)}
+              onMouseEnter={() => setHoveredExploreValue(value)}
+              onMouseLeave={() => setHoveredExploreValue(null)}
               disabled={gameState !== 'playing'}
-              className="rounded bg-violet-600 px-3 py-2 text-white disabled:opacity-40"
+              className="rounded bg-blue-700 px-3 py-2 text-white hover:bg-blue-600 disabled:opacity-40"
             >
               Explore {value}
             </button>
