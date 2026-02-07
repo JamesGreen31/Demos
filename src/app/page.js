@@ -55,6 +55,13 @@ export default function Home() {
           description="Play a strategic ultimate tic-tac-toe variant"
           previewImage="/meta-tic-tac-toe-preview.svg"
         />
+
+        <DemoCard
+          route="dynamic-programming"
+          title="Dynamic Programming Lab"
+          description="Explore coin-change optimization with DP"
+          previewImage="/dynamic-programming-preview.svg"
+        />
       </div>
     </main>
   );
