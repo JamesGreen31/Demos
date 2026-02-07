@@ -477,7 +477,7 @@ export default function LootTheLoopPage() {
             {score.length === 0 && <p className="text-sm text-slate-500">No loot collected yet.</p>}
             {score.map((card) => (
               <span key={card.id} className="rounded bg-amber-100 px-2 py-1 text-sm">
-                {cardLabel({ ...card, faceUp: true }, canEscape)} {card.rank}
+                {card.rank}
               </span>
             ))}
           </div>
