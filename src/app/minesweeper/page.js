@@ -81,6 +81,7 @@ function revealNeighbors(board, row, col) {
 }
 
 export default function MinesweeperPage() {
+  const demosHref = process.env.NODE_ENV === 'production' ? '/Demos' : '/';
   const [board, setBoard] = useState(() => createBoard());
   const [gameState, setGameState] = useState('playing');
 
@@ -134,9 +135,28 @@ export default function MinesweeperPage() {
   }
 
   return (
-    <main className="min-h-screen p-8 flex flex-col items-center gap-4">
-      <h1 className="text-3xl font-bold">Minesweeper Demo</h1>
-      <p className="text-gray-600 text-center">Click cells to reveal them. Clear all safe tiles to win.</p>
+    <main className="min-h-screen p-6 md:p-8 flex flex-col items-center gap-5">
+      <div className="w-full max-w-4xl flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => window.location.assign(demosHref)}
+          className="px-3 py-2 rounded bg-slate-200 hover:bg-slate-300 text-slate-800"
+        >
+          ← Back
+        </button>
+      </div>
+
+      <h1 className="text-3xl font-bold text-center">Minesweeper Demo</h1>
+
+      <section className="w-full max-w-4xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold mb-3">Instructions</h2>
+        <ul className="list-disc pl-5 space-y-2 text-slate-700">
+          <li>Click a tile to reveal it.</li>
+          <li>Numbers tell you how many mines touch that tile.</li>
+          <li>Reveal all non-mine tiles to win.</li>
+          <li>If you reveal a mine, the game ends and all mines are shown.</li>
+        </ul>
+      </section>
 
       <div className="grid grid-cols-8 gap-1 bg-gray-300 p-2 rounded-lg shadow">
         {board.map((row, rowIndex) =>
@@ -161,7 +181,7 @@ export default function MinesweeperPage() {
         )}
       </div>
 
-      <p className="font-medium">
+      <p className="font-medium text-center">
         {gameState === 'playing' && `Safe cells revealed: ${revealedSafeCells}/${ROWS * COLS - MINE_COUNT}`}
         {gameState === 'won' && '🎉 You won!'}
         {gameState === 'lost' && '💥 You hit a mine!'}

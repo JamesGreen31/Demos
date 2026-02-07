@@ -1,8 +1,30 @@
 const demoLinkClassName =
   'font-bold rounded-lg text-xl w-56 p-4 flex flex-col justify-center text-black hover:border-gray-300 border-2 border-transparent transition-all duration-300 ease-in-out bg-gradient-to-r from-transparent to-transparent hover:from-[#a8e6ed] hover:to-[#d1f1f5] hover:shadow-lg';
 
+const previewCardClassName = `${demoLinkClassName} relative overflow-hidden group`;
+
 function getDemoHref(route) {
   return process.env.NODE_ENV === 'production' ? `/Demos/${route}` : `/${route}`;
+}
+
+function DemoCard({ route, title, description, previewImage }) {
+  return (
+    <a href={getDemoHref(route)} target="_blank" className={previewCardClassName}>
+      <div
+        className="absolute inset-0 bg-center bg-cover opacity-30 group-hover:opacity-70 transition-opacity duration-300"
+        style={{ backgroundImage: `url('${previewImage}')` }}
+        aria-hidden="true"
+      />
+      <div
+        className="absolute inset-0 bg-white/55 group-hover:bg-white/25 transition-colors duration-300"
+        aria-hidden="true"
+      />
+      <div className="relative z-10">
+        <h2 className="text-left">{title}</h2>
+        <p className="text-sm font-normal mt-2">{description}</p>
+      </div>
+    </a>
+  );
 }
 
 export default function Home() {
@@ -13,15 +35,26 @@ export default function Home() {
       </div>
 
       <div className="flex flex-wrap gap-3 justify-center">
-        <a href={getDemoHref('A-star')} target="_blank" className={demoLinkClassName}>
-          <h2 className="text-left">A* Demo</h2>
-          <p className="text-sm font-normal mt-2">Visualize the A* algorithm</p>
-        </a>
+        <DemoCard
+          route="A-star"
+          title="A* Demo"
+          description="Visualize the A* algorithm"
+          previewImage="/astar-preview.svg"
+        />
 
-        <a href={getDemoHref('minesweeper')} target="_blank" className={demoLinkClassName}>
-          <h2 className="text-left">Minesweeper Demo</h2>
-          <p className="text-sm font-normal mt-2">Play a classic minesweeper board</p>
-        </a>
+        <DemoCard
+          route="minesweeper"
+          title="Minesweeper Demo"
+          description="Play a classic minesweeper board"
+          previewImage="/minesweeper-preview.svg"
+        />
+
+        <DemoCard
+          route="meta-tic-tac-toe"
+          title="Meta Tic-Tac-Toe"
+          description="Play a strategic ultimate tic-tac-toe variant"
+          previewImage="/meta-tic-tac-toe-preview.svg"
+        />
       </div>
     </main>
   );
