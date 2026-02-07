@@ -80,6 +80,7 @@ export default function LootTheLoopPage() {
   const [undoStack, setUndoStack] = useState([]);
   const [hoveredExploreValue, setHoveredExploreValue] = useState(null);
   const [isMarkHovered, setIsMarkHovered] = useState(false);
+  const [returnLocked, setReturnLocked] = useState(false);
 
   const jewelsCollected = useMemo(
     () => score.filter((card) => card.type === 'jewel').length,
@@ -97,6 +98,7 @@ export default function LootTheLoopPage() {
     setUndoStack([]);
     setHoveredExploreValue(null);
     setIsMarkHovered(false);
+    setReturnLocked(false);
   }
 
   function pushUndoSnapshot() {
@@ -133,6 +135,7 @@ export default function LootTheLoopPage() {
     }
 
     setUndoStack([]);
+    setReturnLocked(false);
     applyAndCheck(nextDeck, notes, score, 'You scan ahead and map more of the temple loop.');
   }
 
@@ -148,12 +151,14 @@ export default function LootTheLoopPage() {
 
   function handleReturnPath(index) {
     if (gameState !== 'playing') return;
+    if (returnLocked) return;
     if (index < 0 || index >= notes.length) return;
 
     pushUndoSnapshot();
     const restored = { ...notes[index], faceUp: true };
     const nextNotes = notes.filter((_, i) => i !== index).map((card) => ({ ...card }));
     const nextDeck = [restored, ...deck.map((card) => ({ ...card }))];
+    setReturnLocked(true);
     applyAndCheck(nextDeck, nextNotes, score.map((card) => ({ ...card })), `Returned ${restored.rank}${restored.suit} to the top.`);
   }
 
@@ -162,6 +167,7 @@ export default function LootTheLoopPage() {
     if (!exploreValues.includes(value) || value > deck.length) return;
 
     pushUndoSnapshot();
+    setReturnLocked(false);
 
     const moved = deck.slice(0, value).map((card) => ({ ...card }));
     const nextDeck = [...deck.slice(value).map((card) => ({ ...card })), ...moved];
@@ -201,9 +207,27 @@ export default function LootTheLoopPage() {
     applyAndCheck(nextDeck, notes.map((card) => ({ ...card })), nextScore, nextMessage);
   }
 
-  function getExploreLandingIndex(value) {
-    if (!deck.length) return null;
-    return value % deck.length;
+  function getExplorePreviewState(value) {
+    if (!exploreValues.includes(value) || value > deck.length) return { kind: 'safe', index: null };
+
+    const moved = deck.slice(0, value).map((card) => ({ ...card }));
+    const previewDeck = [...deck.slice(value).map((card) => ({ ...card })), ...moved];
+    const previewScore = score.map((card) => ({ ...card }));
+
+    const landed = previewDeck[0];
+    if (landed?.faceUp && landed.type === 'trap') {
+      return { kind: 'danger', index: value % deck.length };
+    }
+
+    if (landed?.faceUp && (landed.type === 'jewel' || landed.type === 'path')) {
+      previewScore.push(previewDeck.shift());
+    }
+
+    if (computeStuck(previewDeck, notes)) {
+      return { kind: 'danger', index: value % deck.length };
+    }
+
+    return { kind: 'safe', index: value % deck.length };
   }
 
   function handleUndoMove() {
@@ -217,9 +241,11 @@ export default function LootTheLoopPage() {
     setUndoStack((prev) => prev.slice(0, -1));
     setHoveredExploreValue(null);
     setIsMarkHovered(false);
+    setReturnLocked(false);
   }
 
-  const hoveredExploreLandingIndex = hoveredExploreValue ? getExploreLandingIndex(hoveredExploreValue) : null;
+  const hoveredExplorePreview = hoveredExploreValue ? getExplorePreviewState(hoveredExploreValue) : { kind: 'safe', index: null };
+  const hoveredExploreLandingIndex = hoveredExplorePreview.index;
   const markCaptureIndex = isMarkHovered && deck[0]?.faceUp && deck[0].type === 'path' && notes.length < 3 ? 0 : null;
 
   return (
@@ -289,7 +315,9 @@ export default function LootTheLoopPage() {
                   index === 0 ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-slate-50'
                 } ${
                   index === hoveredExploreLandingIndex
-                    ? 'ring-2 ring-violet-400'
+                    ? hoveredExplorePreview.kind === 'danger'
+                      ? 'bg-red-200 border-red-400'
+                      : 'bg-yellow-100 border-yellow-300'
                     : index === markCaptureIndex
                     ? 'ring-2 ring-emerald-400'
                     : ''
@@ -383,7 +411,7 @@ export default function LootTheLoopPage() {
                 key={card.id}
                 type="button"
                 onClick={() => handleReturnPath(index)}
-                disabled={gameState !== 'playing'}
+                disabled={gameState !== 'playing' || returnLocked}
                 className="rounded border border-slate-300 bg-white px-3 py-2 hover:bg-slate-50 disabled:opacity-40"
                 title="Return this path to top"
               >
@@ -401,7 +429,6 @@ export default function LootTheLoopPage() {
             {score.map((card) => (
               <span key={card.id} className="rounded bg-amber-100 px-2 py-1 text-sm">
                 {cardLabel({ ...card, faceUp: true }, canEscape)} {card.rank}
-                {card.suit}
               </span>
             ))}
           </div>
