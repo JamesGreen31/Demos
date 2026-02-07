@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" fill="none">
+  <rect width="640" height="360" rx="24" fill="#f8fafc"/>
+  <rect x="48" y="68" width="544" height="224" rx="20" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="72" y="108" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#0f172a">WASM vs JS</text>
+  <text x="72" y="132" font-family="Arial, sans-serif" font-size="14" fill="#475569">Fibonacci race progress</text>
+  <rect x="72" y="164" width="496" height="36" rx="10" fill="#fff7ed" stroke="#fed7aa"/>
+  <rect x="72" y="164" width="278" height="36" rx="10" fill="#fdba74"/>
+  <rect x="72" y="220" width="496" height="36" rx="10" fill="#ecfeff" stroke="#a5f3fc"/>
+  <rect x="72" y="220" width="392" height="36" rx="10" fill="#22d3ee"/>
+  <text x="82" y="187" font-family="Arial, sans-serif" font-size="13" font-weight="600" fill="#7c2d12">JavaScript</text>
+  <text x="82" y="243" font-family="Arial, sans-serif" font-size="13" font-weight="600" fill="#155e75">WASM</text>
+</svg>
