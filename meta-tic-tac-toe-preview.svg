@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280" role="img" aria-label="Meta tic tac toe preview">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#dcfce7"/>
+      <stop offset="100%" stop-color="#86efac"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="280" fill="url(#bg)"/>
+  <g transform="translate(53 20)">
+    <rect width="294" height="240" rx="14" fill="#0f172a" opacity="0.18"/>
+    <g transform="translate(12 12)">
+      <g stroke="#0f172a" stroke-width="6" fill="#f1f5f9">
+        <rect x="0" y="0" width="84" height="68" rx="6"/><rect x="93" y="0" width="84" height="68" rx="6"/><rect x="186" y="0" width="84" height="68" rx="6"/>
+        <rect x="0" y="76" width="84" height="68" rx="6"/><rect x="93" y="76" width="84" height="68" rx="6"/><rect x="186" y="76" width="84" height="68" rx="6"/>
+        <rect x="0" y="152" width="84" height="68" rx="6"/><rect x="93" y="152" width="84" height="68" rx="6"/><rect x="186" y="152" width="84" height="68" rx="6"/>
+      </g>
+      <rect x="93" y="76" width="84" height="68" rx="6" fill="#86efac" opacity="0.65"/>
+      <text x="20" y="40" font-size="32" font-family="Arial" fill="#dc2626" font-weight="700">X</text>
+      <text x="118" y="44" font-size="32" font-family="Arial" fill="#2563eb" font-weight="700">O</text>
+      <text x="204" y="41" font-size="32" font-family="Arial" fill="#dc2626" font-weight="700">X</text>
+      <text x="18" y="118" font-size="32" font-family="Arial" fill="#2563eb" font-weight="700">O</text>
+      <text x="116" y="121" font-size="32" font-family="Arial" fill="#dc2626" font-weight="700">X</text>
+      <text x="210" y="120" font-size="32" font-family="Arial" fill="#2563eb" font-weight="700">O</text>
+      <text x="20" y="198" font-size="32" font-family="Arial" fill="#dc2626" font-weight="700">X</text>
+      <text x="118" y="196" font-size="32" font-family="Arial" fill="#2563eb" font-weight="700">O</text>
+      <text x="206" y="198" font-size="32" font-family="Arial" fill="#dc2626" font-weight="700">X</text>
+    </g>
+  </g>
+</svg>
