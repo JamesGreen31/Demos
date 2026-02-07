@@ -222,36 +222,17 @@ export default function LootTheLoopPage() {
   function getExplorePreviewState(value) {
     if (!exploreValues.includes(value) || value > deck.length) return { kind: null, index: null };
 
-    const moved = deck.slice(0, value).map((card) => ({ ...card }));
-    const previewDeck = [...deck.slice(value).map((card) => ({ ...card })), ...moved];
-    const previewScore = score.map((card) => ({ ...card }));
+    const landed = deck[value] ?? deck[0];
 
-    const landed = previewDeck[0];
-    if (landed?.faceUp && landed.type === 'trap') {
-      return { kind: 'death', index: value % deck.length };
+    if (!landed) return { kind: null, index: null };
+    if (landed.type === 'jewel') return { kind: 'jewel', index: value % deck.length };
+    if (!landed.faceUp) return { kind: 'hidden', index: value % deck.length };
+    if (landed.type === 'trap') return { kind: 'trap', index: value % deck.length };
+    if (landed.type === 'exit') {
+      return { kind: canEscape ? 'jewel' : 'exit', index: value % deck.length };
     }
 
-    if (landed?.faceUp && landed.type === 'jewel') {
-      return { kind: 'quest', index: value % deck.length };
-    }
-
-    if (landed?.faceUp && landed.type === 'path') {
-      return { kind: 'capture', index: value % deck.length };
-    }
-
-    if (landed?.faceUp && landed.type === 'exit') {
-      return { kind: canEscape ? 'quest' : 'landing', index: value % deck.length };
-    }
-
-    if (landed?.faceUp && (landed.type === 'jewel' || landed.type === 'path')) {
-      previewScore.push(previewDeck.shift());
-    }
-
-    if (computeStuck(previewDeck, notes)) {
-      return { kind: 'death', index: value % deck.length };
-    }
-
-    return { kind: 'landing', index: value % deck.length };
+    return { kind: 'path', index: value % deck.length };
   }
 
   function handleUndoMove() {
@@ -274,10 +255,12 @@ export default function LootTheLoopPage() {
 
   function getHighlightClass(index) {
     if (index === hoveredExploreLandingIndex) {
-      if (hoveredExplorePreview.kind === 'death') return 'bg-red-200 border-red-400';
-      if (hoveredExplorePreview.kind === 'quest') return 'bg-emerald-200 border-emerald-400';
-      if (hoveredExplorePreview.kind === 'capture') return 'bg-yellow-100 border-yellow-400';
-      if (hoveredExplorePreview.kind === 'landing') return 'bg-sky-200 border-sky-400';
+      if (hoveredExplorePreview.kind === 'trap') return 'bg-red-200 border-red-400';
+      if (hoveredExplorePreview.kind === 'jewel') return 'bg-emerald-200 border-emerald-400';
+      if (hoveredExplorePreview.kind === 'path') return 'bg-yellow-100 border-yellow-400';
+      if (hoveredExplorePreview.kind === 'exit' || hoveredExplorePreview.kind === 'hidden') {
+        return 'bg-sky-200 border-sky-400';
+      }
     }
 
     if (index === markCaptureIndex) {
