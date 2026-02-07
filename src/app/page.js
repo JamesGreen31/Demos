@@ -33,56 +33,71 @@ function DemoCard({ route, title, description, previewImage }) {
 }
 
 export default function Home() {
+  const demoPackages = [
+    {
+      route: 'A-star',
+      title: 'A* Demo',
+      description: 'Visualize the A* algorithm',
+      previewImage: '/astar-preview.svg',
+    },
+    {
+      route: 'dynamic-programming',
+      title: 'Dynamic Programming Demo',
+      description: 'Explore coin-change optimization with DP',
+      previewImage: '/dynamic-programming-preview.svg',
+    },
+  ];
+
+  const ckplaceGames = [
+    {
+      route: 'minesweeper',
+      title: 'Minesweeper',
+      description: 'Play a classic minesweeper board',
+      previewImage: '/minesweeper-preview.svg',
+    },
+    {
+      route: 'meta-tic-tac-toe',
+      title: 'Meta Tic-Tac-Toe',
+      description: 'Play a strategic ultimate tic-tac-toe variant',
+      previewImage: '/meta-tic-tac-toe-preview.svg',
+    },
+    {
+      route: 'dead-center',
+      title: 'Dead Center',
+      description: 'Defend the cabin by sequencing card plays and zombie kills',
+      previewImage: '/dead-center-preview.svg',
+    },
+    {
+      route: 'loot-the-loop',
+      title: 'Loot the Loop',
+      description: 'Raid a looping temple, collect jewels, and dodge traps',
+      previewImage: '/loot-the-loop-preview.svg',
+    },
+  ];
+
   return (
     <main className="flex min-h-screen flex-col items-center m-8">
       <div>
         <h1 className="text-4xl font-bold mb-4">Ckplace demos</h1>
       </div>
 
-      <div className="flex flex-wrap gap-3 justify-center">
-        <DemoCard
-          route="A-star"
-          title="A* Demo"
-          description="Visualize the A* algorithm"
-          previewImage="/astar-preview.svg"
-        />
+      <section className="w-full max-w-6xl">
+        <h2 className="text-2xl font-semibold mb-3">Demo Packages</h2>
+        <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+          {demoPackages.map((demo) => (
+            <DemoCard key={demo.route} {...demo} />
+          ))}
+        </div>
+      </section>
 
-        <DemoCard
-          route="minesweeper"
-          title="Minesweeper Demo"
-          description="Play a classic minesweeper board"
-          previewImage="/minesweeper-preview.svg"
-        />
-
-        <DemoCard
-          route="meta-tic-tac-toe"
-          title="Meta Tic-Tac-Toe"
-          description="Play a strategic ultimate tic-tac-toe variant"
-          previewImage="/meta-tic-tac-toe-preview.svg"
-        />
-
-        <DemoCard
-          route="dynamic-programming"
-          title="Dynamic Programming Lab"
-          description="Explore coin-change optimization with DP"
-          previewImage="/dynamic-programming-preview.svg"
-        />
-
-
-        <DemoCard
-          route="dead-center"
-          title="Dead Center"
-          description="Defend the cabin by sequencing card plays and zombie kills"
-          previewImage="/dead-center-preview.svg"
-        />
-
-        <DemoCard
-          route="loot-the-loop"
-          title="Loot the Loop"
-          description="Raid a looping temple, collect jewels, and dodge traps"
-          previewImage="/loot-the-loop-preview.svg"
-        />
-      </div>
+      <section className="w-full max-w-6xl mt-10">
+        <h2 className="text-2xl font-semibold mb-3">Ckplace Games</h2>
+        <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+          {ckplaceGames.map((game) => (
+            <DemoCard key={game.route} {...game} />
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
