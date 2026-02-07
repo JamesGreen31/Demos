@@ -13,9 +13,17 @@ export default function Home() {
       </div>
 
       <div className="flex flex-wrap gap-3 justify-center">
-        <a href={getDemoHref('A-star')} target="_blank" className={demoLinkClassName}>
-          <h2 className="text-left">A* Demo</h2>
-          <p className="text-sm font-normal mt-2">Visualize the A* algorithm</p>
+        <a href={getDemoHref('A-star')} target="_blank" className={`${demoLinkClassName} relative overflow-hidden group`}>
+          <div
+            className="absolute inset-0 bg-center bg-cover opacity-30 group-hover:opacity-70 transition-opacity duration-300"
+            style={{ backgroundImage: "url('/astar-preview.svg')" }}
+            aria-hidden="true"
+          />
+          <div className="absolute inset-0 bg-white/55 group-hover:bg-white/25 transition-colors duration-300" aria-hidden="true" />
+          <div className="relative z-10">
+            <h2 className="text-left">A* Demo</h2>
+            <p className="text-sm font-normal mt-2">Visualize the A* algorithm</p>
+          </div>
         </a>
 
         <a href={getDemoHref('minesweeper')} target="_blank" className={demoLinkClassName}>
