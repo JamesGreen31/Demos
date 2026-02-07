@@ -145,30 +145,30 @@ export default function AStarPage() {
 
                     if(row == gridSize -1 && col == 0){
                         return (
-                            <div key={index} className="w-16 h-16 sm: w-10 sm: h-10 rounded-xl flex items-center justify-center bg-[#2e7a34]">
-                                <span className="text-sm sm: text-[0.7rem] font-semibold text-white">{`START`}</span>
+                            <div key={index} className="w-16 h-16 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-[#2e7a34]">
+                                <span className="text-sm sm:text-[0.7rem] font-semibold text-white">{`START`}</span>
                             </div>
                         );
                     }
                     if(row == 0 && col == gridSize -1){
                         return (
-                            <div key={index} className="w-16 h-16 sm: w-10 sm: h-10 rounded-xl flex items-center justify-center bg-[#a4832f]">
-                                <span className="text-sm sm: text-[0.7rem] font-semibold text-white">{`GOAL`}</span>
+                            <div key={index} className="w-16 h-16 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-[#a4832f]">
+                                <span className="text-sm sm:text-[0.7rem] font-semibold text-white">{`GOAL`}</span>
                             </div>
                         );
                     }
                     return (
                         <button 
                             key={index} 
-                            className={`w-16 h-16 sm: w-10 sm: h-10 ${
+                            className={`w-16 h-16 sm:w-10 sm:h-10 ${
                                 isInPath ? 'bg-blue-500' :
                                 cellStates[index] ? 'bg-red-500' : 'bg-gray-300'
                             } rounded-xl flex flex-col items-center justify-center`}
                             onClick={() => toggleCell(index)}
                         >
-                            <span className="sm: text-[0.6rem] h-1/3 text-xs font-semibold">{`(${row},${col})`}</span>
-                            <span className="sm: text-[0.6rem] h-1/3 text-xs">{`g: ${cellWeight?.gWeight ?? 0}`}</span>
-                            <span className="sm: text-[0.6rem] h-1/3 text-xs">{`h: ${cellWeight?.hWeight ?? 0}`}</span>
+                            <span className="sm:text-[0.6rem] h-1/3 text-xs font-semibold">{`(${row},${col})`}</span>
+                            <span className="sm:text-[0.6rem] h-1/3 text-xs">{`g: ${cellWeight?.gWeight ?? 0}`}</span>
+                            <span className="sm:text-[0.6rem] h-1/3 text-xs">{`h: ${cellWeight?.hWeight ?? 0}`}</span>
                         </button>
                     );
                 })}
