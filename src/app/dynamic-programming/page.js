@@ -256,6 +256,28 @@ export default function DynamicProgrammingPage() {
           )}
         </div>
 
+        <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <h3 className="font-semibold mb-2">Legend</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-sm text-slate-700">
+            <div className="flex items-center gap-2">
+              <span className="h-4 w-4 rounded border border-amber-400 bg-amber-50" aria-hidden="true" />
+              <span>Current step being explained</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-4 w-4 rounded border border-emerald-400 bg-emerald-50" aria-hidden="true" />
+              <span>Amounts that form a minimum-coin route from the target back to 0</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-4 w-4 rounded border border-blue-500 bg-blue-50" aria-hidden="true" />
+              <span>Target amount</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-4 w-4 rounded border border-slate-200 bg-white" aria-hidden="true" />
+              <span>Other computed amounts</span>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
           {Array.from({ length: targetAmount + 1 }, (_, amount) => {
             const stateClassName =
