@@ -22,6 +22,11 @@ export default function Home() {
           <h2 className="text-left">Minesweeper Demo</h2>
           <p className="text-sm font-normal mt-2">Play a classic minesweeper board</p>
         </a>
+
+        <a href={getDemoHref('meta-tic-tac-toe')} target="_blank" className={demoLinkClassName}>
+          <h2 className="text-left">Meta Tic-Tac-Toe</h2>
+          <p className="text-sm font-normal mt-2">Play a strategic ultimate tic-tac-toe variant</p>
+        </a>
       </div>
     </main>
   );
