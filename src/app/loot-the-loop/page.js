@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const SUITS = ['♠', '♥', '♦', '♣'];
 
@@ -81,6 +81,7 @@ export default function LootTheLoopPage() {
   const [hoveredExploreValue, setHoveredExploreValue] = useState(null);
   const [isMarkHovered, setIsMarkHovered] = useState(false);
   const [returnLocked, setReturnLocked] = useState(false);
+  const [visibleRooms, setVisibleRooms] = useState(16);
 
   const jewelsCollected = useMemo(
     () => score.filter((card) => card.type === 'jewel').length,
@@ -88,6 +89,19 @@ export default function LootTheLoopPage() {
   );
   const canEscape = jewelsCollected === 4;
   const exploreValues = useMemo(() => availableExploreValues(deck), [deck]);
+
+  useEffect(() => {
+    document.title = 'Loot-The-Loop';
+  }, []);
+
+  useEffect(() => {
+    setVisibleRooms((prev) => {
+      const minimum = Math.min(6, deck.length);
+      if (prev < minimum) return minimum;
+      if (prev > deck.length) return deck.length;
+      return prev;
+    });
+  }, [deck.length]);
 
   function resetGame() {
     setDeck(createTempleDeck());
@@ -208,7 +222,7 @@ export default function LootTheLoopPage() {
   }
 
   function getExplorePreviewState(value) {
-    if (!exploreValues.includes(value) || value > deck.length) return { kind: 'safe', index: null };
+    if (!exploreValues.includes(value) || value > deck.length) return { kind: null, index: null };
 
     const moved = deck.slice(0, value).map((card) => ({ ...card }));
     const previewDeck = [...deck.slice(value).map((card) => ({ ...card })), ...moved];
@@ -216,7 +230,19 @@ export default function LootTheLoopPage() {
 
     const landed = previewDeck[0];
     if (landed?.faceUp && landed.type === 'trap') {
-      return { kind: 'danger', index: value % deck.length };
+      return { kind: 'death', index: value % deck.length };
+    }
+
+    if (landed?.faceUp && landed.type === 'jewel') {
+      return { kind: 'quest', index: value % deck.length };
+    }
+
+    if (landed?.faceUp && landed.type === 'path') {
+      return { kind: 'capture', index: value % deck.length };
+    }
+
+    if (landed?.faceUp && landed.type === 'exit') {
+      return { kind: canEscape ? 'quest' : 'landing', index: value % deck.length };
     }
 
     if (landed?.faceUp && (landed.type === 'jewel' || landed.type === 'path')) {
@@ -224,10 +250,10 @@ export default function LootTheLoopPage() {
     }
 
     if (computeStuck(previewDeck, notes)) {
-      return { kind: 'danger', index: value % deck.length };
+      return { kind: 'death', index: value % deck.length };
     }
 
-    return { kind: 'safe', index: value % deck.length };
+    return { kind: 'landing', index: value % deck.length };
   }
 
   function handleUndoMove() {
@@ -244,9 +270,24 @@ export default function LootTheLoopPage() {
     setReturnLocked(false);
   }
 
-  const hoveredExplorePreview = hoveredExploreValue ? getExplorePreviewState(hoveredExploreValue) : { kind: 'safe', index: null };
+  const hoveredExplorePreview = hoveredExploreValue ? getExplorePreviewState(hoveredExploreValue) : { kind: null, index: null };
   const hoveredExploreLandingIndex = hoveredExplorePreview.index;
-  const markCaptureIndex = isMarkHovered && deck[0]?.faceUp && deck[0].type === 'path' && notes.length < 3 ? 0 : null;
+  const markCaptureIndex = isMarkHovered && deck[0]?.faceUp && deck[0].type === 'path' && notes.length < 3 && !returnLocked ? 0 : null;
+
+  function getHighlightClass(index) {
+    if (index === hoveredExploreLandingIndex) {
+      if (hoveredExplorePreview.kind === 'death') return 'bg-red-200 border-red-400';
+      if (hoveredExplorePreview.kind === 'quest') return 'bg-emerald-200 border-emerald-400';
+      if (hoveredExplorePreview.kind === 'capture') return 'bg-yellow-100 border-yellow-400';
+      if (hoveredExplorePreview.kind === 'landing') return 'bg-sky-200 border-sky-400';
+    }
+
+    if (index === markCaptureIndex) {
+      return 'bg-yellow-100 border-yellow-400';
+    }
+
+    return '';
+  }
 
   return (
     <main className="min-h-screen p-6 md:p-8 flex flex-col items-center gap-5">
@@ -260,7 +301,7 @@ export default function LootTheLoopPage() {
         </button>
       </div>
 
-      <h1 className="text-3xl font-bold text-center">Loot the Loop</h1>
+      <h1 className="text-3xl font-bold text-center">Loot-The-Loop</h1>
 
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-3">What is Loot the Loop?</h2>
@@ -290,6 +331,10 @@ export default function LootTheLoopPage() {
             <strong> Return</strong> a saved path to the top when you need to adjust timing.
           </li>
           <li>
+            Use the <strong>Rooms shown</strong> slider above the board to limit how many cards are rendered,
+            which makes planning easier on smaller screens.
+          </li>
+          <li>
             Collect 💎 jewels and other face-up loot by landing on them. Avoid 💀 traps. Reach the exit
             after collecting all four jewels to win.
           </li>
@@ -307,21 +352,25 @@ export default function LootTheLoopPage() {
       <section className="w-full max-w-6xl grid gap-4 lg:grid-cols-[2fr_1fr]">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-xl font-semibold mb-3">Temple Loop (top first)</h2>
+          <label className="mb-3 block text-sm text-slate-700" htmlFor="rooms-visible-slider">
+            Rooms shown: <strong>{Math.min(visibleRooms, deck.length)}</strong>
+          </label>
+          <input
+            id="rooms-visible-slider"
+            type="range"
+            min={Math.min(6, deck.length)}
+            max={deck.length}
+            value={Math.min(visibleRooms, deck.length)}
+            onChange={(event) => setVisibleRooms(Number(event.target.value))}
+            className="mb-4 w-full accent-blue-600"
+          />
           <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-13 gap-2">
-            {deck.map((card, index) => (
+            {deck.slice(0, visibleRooms).map((card, index) => (
               <div
                 key={card.id}
                 className={`rounded-md border p-2 text-center text-sm ${
                   index === 0 ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-slate-50'
-                } ${
-                  index === hoveredExploreLandingIndex
-                    ? hoveredExplorePreview.kind === 'danger'
-                      ? 'bg-red-200 border-red-400'
-                      : 'bg-yellow-100 border-yellow-300'
-                    : index === markCaptureIndex
-                    ? 'ring-2 ring-emerald-400'
-                    : ''
-                }`}
+                } ${getHighlightClass(index)}`}
                 title={describeCard(card)}
               >
                 <div className="font-semibold">{index === 0 ? 'You' : `+${index}`}</div>
@@ -330,7 +379,7 @@ export default function LootTheLoopPage() {
             ))}
           </div>
           <p className="text-xs text-slate-500 mt-3">
-            Showing all {deck.length} rooms currently remaining in the loop.
+            Showing {Math.min(visibleRooms, deck.length)} of {deck.length} rooms currently remaining in the loop.
           </p>
         </div>
 
@@ -370,7 +419,7 @@ export default function LootTheLoopPage() {
             onMouseEnter={() => setIsMarkHovered(true)}
             onMouseLeave={() => setIsMarkHovered(false)}
             disabled={
-              gameState !== 'playing' || !deck[0]?.faceUp || deck[0].type !== 'path' || notes.length >= 3
+              gameState !== 'playing' || !deck[0]?.faceUp || deck[0].type !== 'path' || notes.length >= 3 || returnLocked
             }
             className="rounded bg-slate-700 px-3 py-2 text-white hover:bg-slate-600 disabled:opacity-40"
           >
@@ -434,6 +483,14 @@ export default function LootTheLoopPage() {
           </div>
         </div>
       </section>
+
+      <p className="w-full max-w-6xl text-center text-sm text-slate-600">
+        Credit for this game goes to Isaludo. Rule book for this and other games available at
+        {' '}
+        <a className="text-blue-700 underline" href="https://drive.google.com/file/d/1DB2YF46s0oVFUSIpR9vxoGIbhpTKz2jw/view" target="_blank" rel="noreferrer">
+          https://drive.google.com/file/d/1DB2YF46s0oVFUSIpR9vxoGIbhpTKz2jw/view
+        </a>
+      </p>
     </main>
   );
 }
