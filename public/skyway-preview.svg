@@ -1,0 +1,17 @@
+<svg width="640" height="360" viewBox="0 0 640 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="360" rx="24" fill="#E0F2FE"/>
+  <rect x="40" y="40" width="560" height="280" rx="20" fill="#F8FAFC" stroke="#38BDF8" stroke-width="4"/>
+  <g fill="#0F172A" font-family="Arial" font-size="30" font-weight="700">
+    <text x="70" y="100">Skyway</text>
+  </g>
+  <g fill="#0369A1" font-family="Arial" font-size="20">
+    <text x="70" y="145">Increasing suit paths across adjacent cells</text>
+    <text x="70" y="180">Score = ♠ + ♥ + ♦ + ♣ longest lengths</text>
+  </g>
+  <g font-family="Arial" font-size="44" font-weight="700">
+    <text x="70" y="260" fill="#0F172A">♠</text>
+    <text x="130" y="260" fill="#BE123C">♥</text>
+    <text x="190" y="260" fill="#BE123C">♦</text>
+    <text x="250" y="260" fill="#0F172A">♣</text>
+  </g>
+</svg>
