@@ -211,6 +211,8 @@ export default function DeadCenterPage() {
     [state.zombies]
   );
   const killedCount = 12 - aliveZombieCount;
+  const displayGameState = isGameStarted ? state.gameState : 'not playing';
+  const displayPhase = isGameStarted ? state.phase : 'setup';
   const hasStartedGame = useMemo(() => {
     if (!isGameStarted) return false;
     return (
@@ -560,8 +562,8 @@ export default function DeadCenterPage() {
 
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-2 flex flex-col">
           <h2 className="text-xl font-semibold">Status</h2>
-          <p>Game: <strong>{state.gameState}</strong></p>
-          <p>Phase: <strong>{state.phase}</strong></p>
+          <p>Game: <strong>{displayGameState}</strong></p>
+          <p>Phase: <strong>{displayPhase}</strong></p>
           <p>Turn: <strong>{state.turn}</strong></p>
           <p>Zombies killed: <strong>{killedCount}/12</strong></p>
           <p>Deck remaining: <strong>{state.deck.length}</strong></p>
