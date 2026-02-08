@@ -178,11 +178,13 @@ export default function LootTheLoopPage() {
     if (gameState !== 'playing') return;
     if (!exploreValues.includes(value) || value > deck.length) return;
 
+    const exploreOffset = value - 1;
+
     pushUndoSnapshot();
     setReturnLocked(false);
 
-    const moved = deck.slice(0, value).map((card) => ({ ...card }));
-    const nextDeck = [...deck.slice(value).map((card) => ({ ...card })), ...moved];
+    const moved = deck.slice(0, exploreOffset).map((card) => ({ ...card }));
+    const nextDeck = [...deck.slice(exploreOffset).map((card) => ({ ...card })), ...moved];
     const nextScore = score.map((card) => ({ ...card }));
 
     const landed = nextDeck[0];
@@ -222,17 +224,19 @@ export default function LootTheLoopPage() {
   function getExplorePreviewState(value) {
     if (!exploreValues.includes(value) || value > deck.length) return { kind: null, index: null };
 
-    const landed = deck[value] ?? deck[0];
+    const landingIndex = value - 1;
+
+    const landed = deck[landingIndex] ?? deck[0];
 
     if (!landed) return { kind: null, index: null };
-    if (landed.type === 'jewel') return { kind: 'jewel', index: value % deck.length };
-    if (!landed.faceUp) return { kind: 'hidden', index: value % deck.length };
-    if (landed.type === 'trap') return { kind: 'trap', index: value % deck.length };
+    if (landed.type === 'jewel') return { kind: 'jewel', index: landingIndex % deck.length };
+    if (!landed.faceUp) return { kind: 'hidden', index: landingIndex % deck.length };
+    if (landed.type === 'trap') return { kind: 'trap', index: landingIndex % deck.length };
     if (landed.type === 'exit') {
-      return { kind: canEscape ? 'stairs' : 'stone', index: value % deck.length };
+      return { kind: canEscape ? 'stairs' : 'stone', index: landingIndex % deck.length };
     }
 
-    return { kind: 'path', index: value % deck.length };
+    return { kind: 'path', index: landingIndex % deck.length };
   }
 
   function handleUndoMove() {
