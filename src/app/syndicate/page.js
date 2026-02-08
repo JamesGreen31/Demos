@@ -77,6 +77,7 @@ function createInitialState() {
     replacementOptions: [],
     pendingPromotion: null,
     sacrificeRank: null,
+    promotionDestination: 'members',
   };
 }
 
@@ -93,7 +94,7 @@ function getReplacementOptions(state, rank, promotedIndex) {
 
   const allowedValues = getReplacementValues(survivors[0].value, survivors[1].value);
   return state.candidates[rank]
-    .map((card, index) => ({ card, index }))
+    .map((card, index) => ({ card, index, rank }))
     .filter(({ card }) => allowedValues.includes(card.value));
 }
 
@@ -157,6 +158,7 @@ export default function SyndicatePage() {
       replacementOptions: [],
       pendingPromotion: null,
       sacrificeRank: null,
+      promotionDestination: 'members',
     };
   }
 
@@ -170,9 +172,26 @@ export default function SyndicatePage() {
       selectedSourceRank: rank,
       selectedMemberIndex: null,
       replacementOptions: [],
+      promotionDestination: 'members',
       message: rank === 1
         ? 'Choose a Rank 1 member to promote for a win.'
         : `Choose one Rank ${rank} member to promote to Rank ${rank - 1}.`,
+    }));
+  }
+
+
+  function choosePromotionDestination(destination) {
+    if (state.gameState !== 'playing') return;
+    if (state.sacrificeRank !== null) return;
+    if (!state.selectedSourceRank || state.selectedSourceRank === 1) return;
+    if (destination !== 'members' && destination !== 'candidates') return;
+
+    setState((prev) => ({
+      ...prev,
+      promotionDestination: destination,
+      message: destination === 'members'
+        ? `Promotion destination: Rank ${prev.selectedSourceRank - 1} members.`
+        : `Promotion destination: Rank ${prev.selectedSourceRank - 1} candidates.`,
     }));
   }
 
@@ -214,10 +233,11 @@ export default function SyndicatePage() {
     }));
   }
 
-  function chooseReplacement(candidateIndex) {
+  function chooseReplacement(candidateRank, candidateIndex) {
     if (state.gameState !== 'playing') return;
     const rank = state.selectedSourceRank;
     if (!rank || rank === 1 || state.selectedMemberIndex === null) return;
+    if (candidateRank !== rank) return;
 
     const replacement = state.replacementOptions.find((option) => option.index === candidateIndex);
     if (!replacement) return;
@@ -233,9 +253,15 @@ export default function SyndicatePage() {
     nextMembers[rank].push(pulledCandidate);
 
     const targetRank = rank - 1;
-    nextMembers[targetRank].push(promotedCard);
+    const promotingToMembers = state.promotionDestination === 'members';
 
-    if (nextMembers[targetRank].length > 3) {
+    if (promotingToMembers) {
+      nextMembers[targetRank].push(promotedCard);
+    } else {
+      nextCandidates[targetRank].push(promotedCard);
+    }
+
+    if (promotingToMembers && nextMembers[targetRank].length > 3) {
       // Overflow is resolved by sacrificing exactly one member from the promoted-into rank.
       setState({
         ...state,
@@ -246,6 +272,7 @@ export default function SyndicatePage() {
         replacementOptions: [],
         pendingPromotion: { from: rank, to: targetRank, card: promotedCard },
         sacrificeRank: targetRank,
+        promotionDestination: 'members',
         message: `Rank ${targetRank} overflowed to four members. Choose one card there to sacrifice.`,
       });
       return;
@@ -259,7 +286,10 @@ export default function SyndicatePage() {
       selectedMemberIndex: null,
       replacementOptions: [],
       pendingPromotion: null,
-      message: `Promoted ${cardLabel(promotedCard)} to Rank ${targetRank}.`,
+      promotionDestination: 'members',
+      message: promotingToMembers
+        ? `Promoted ${cardLabel(promotedCard)} to Rank ${targetRank} members.`
+        : `Promoted ${cardLabel(promotedCard)} to Rank ${targetRank} candidates.`,
     };
 
     setState(setLossMessage(baseNextState, 'No legal promotions remain. You are stuck.'));
@@ -283,6 +313,7 @@ export default function SyndicatePage() {
       sacrificedCount: state.sacrificedCount + 1,
       sacrificeRank: null,
       pendingPromotion: null,
+      promotionDestination: 'members',
       message: `Sacrificed ${cardLabel(sacrificedCard)} from Rank ${rank}.`,
     };
 
@@ -326,6 +357,7 @@ export default function SyndicatePage() {
         <ul className="list-disc pl-5 space-y-2 text-slate-700">
           <li>Select a rank that currently has exactly 3 members, then choose one member to promote.</li>
           <li>Promotions move up one step (R5→R4→R3→R2→R1), and promoting from Rank 1 wins instantly.</li>
+          <li>For ranks 5-2, choose whether each promotion joins the next rank&apos;s members or candidates.</li>
           <li>Use New Game to reshuffle when you want to restart from a fresh deal.</li>
         </ul>
         <details className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
@@ -356,16 +388,44 @@ export default function SyndicatePage() {
             <div key={rank} className={`rounded-lg border p-4 ${getRankShellTone(rank)}`}>
               <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
                 <h3 className="text-lg font-semibold">Rank {rank}</h3>
-                <button
-                  type="button"
-                  onClick={() => chooseSourceRank(rank)}
-                  disabled={state.gameState !== 'playing' || state.sacrificeRank !== null || !canPromote}
-                  className={`px-3 py-1 rounded text-sm font-medium ${
-                    isSelectedRank ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-800 hover:bg-slate-300'
-                  } disabled:opacity-40 disabled:cursor-not-allowed`}
-                >
-                  {rank === 1 ? 'Promote to Win' : `Promote to Rank ${rank - 1}`}
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {isSelectedRank && rank !== 1 && (
+                    <div className="inline-flex rounded border border-slate-300 bg-white p-1">
+                      <button
+                        type="button"
+                        onClick={() => choosePromotionDestination('members')}
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          state.promotionDestination === 'members'
+                            ? 'bg-slate-900 text-white'
+                            : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        To Members
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => choosePromotionDestination('candidates')}
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          state.promotionDestination === 'candidates'
+                            ? 'bg-slate-900 text-white'
+                            : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        To Candidates
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => chooseSourceRank(rank)}
+                    disabled={state.gameState !== 'playing' || state.sacrificeRank !== null || !canPromote}
+                    className={`px-3 py-1 rounded text-sm font-medium ${
+                      isSelectedRank ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-800 hover:bg-slate-300'
+                    } disabled:opacity-40 disabled:cursor-not-allowed`}
+                  >
+                    {rank === 1 ? 'Promote to Win' : `Promote to Rank ${rank - 1}`}
+                  </button>
+                </div>
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
@@ -403,12 +463,12 @@ export default function SyndicatePage() {
                       <span className="text-sm text-slate-500">No candidates left.</span>
                     )}
                     {state.candidates[rank].map((card, candidateIndex) => {
-                      const canUse = state.replacementOptions.some((option) => option.index === candidateIndex);
+                      const canUse = state.replacementOptions.some((option) => option.rank === rank && option.index === candidateIndex);
                       return (
                         <button
                           key={card.id}
                           type="button"
-                          onClick={() => chooseReplacement(candidateIndex)}
+                          onClick={() => chooseReplacement(rank, candidateIndex)}
                           disabled={!canUse}
                           className={`min-w-14 px-3 py-2 rounded border text-sm font-semibold ${getCardTone(card)} ${
                             canUse ? 'ring-2 ring-emerald-500' : ''
