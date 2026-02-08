@@ -346,9 +346,11 @@ export default function SyndicatePage() {
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-2">Description</h2>
         <p className="text-slate-700">
-          Syndicate is a rank-climbing card DP where every promotion must preserve formation discipline.
-          You push members upward from Rank 5 to Rank 1, refill from that rank&apos;s candidates by digit math,
-          and absorb overflow with sacrifices. Score is the number of sacrificed cards, so lower is better.
+          Syndicate is a rank-climbing card challenge about infiltrating a five-tier criminal hierarchy.
+          Promote one member at a time from Rank 5 toward Rank 1, then refill the vacated spot with a candidate
+          whose value matches the remaining pair by sum-or-product last-digit rules. If a promotion creates a
+          fourth member in the destination rank, sacrifice one immediately. Win by promoting out of Rank 1,
+          and keep your sacrifice count as low as possible.
         </p>
       </section>
 
