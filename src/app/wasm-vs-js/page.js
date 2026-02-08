@@ -6,6 +6,8 @@ const MIN_ITERATIONS = 30;
 const MAX_ITERATIONS = 45;
 const DEFAULT_ITERATIONS = 36;
 const TIMED_RACE_DURATION_MS = 30_000;
+const TIMED_BATCH_SIZE_OPTIONS = [1, 100, 10_000, 1_000_000];
+const TIMED_UI_UPDATE_OPTIONS = [16, 100, 250];
 
 function buildProgressList(iterations) {
   return Array.from({ length: iterations }, () => false);
@@ -85,8 +87,12 @@ export default function WasmVsJsPage() {
   const [timedErrorMessage, setTimedErrorMessage] = useState('');
   const [jsTimedScore, setJsTimedScore] = useState(null);
   const [wasmTimedScore, setWasmTimedScore] = useState(null);
+  const [timedBatchSize, setTimedBatchSize] = useState(10_000);
+  const [timedUiUpdateMs, setTimedUiUpdateMs] = useState(100);
   const [jsTimedElapsedMs, setJsTimedElapsedMs] = useState(null);
   const [wasmTimedElapsedMs, setWasmTimedElapsedMs] = useState(null);
+  const [jsTimedDone, setJsTimedDone] = useState(false);
+  const [wasmTimedDone, setWasmTimedDone] = useState(false);
   const [timedRaceStartedAt, setTimedRaceStartedAt] = useState(null);
   const [timedRaceRemainingMs, setTimedRaceRemainingMs] = useState(TIMED_RACE_DURATION_MS);
 
@@ -187,6 +193,8 @@ export default function WasmVsJsPage() {
     setJsTimedElapsedMs(null);
     setWasmTimedElapsedMs(null);
     setTimedErrorMessage('');
+    setJsTimedDone(false);
+    setWasmTimedDone(false);
     setTimedRaceStartedAt(null);
     setTimedRaceRemainingMs(TIMED_RACE_DURATION_MS);
   };
@@ -205,10 +213,10 @@ export default function WasmVsJsPage() {
   }, [jsElapsedMs, wasmElapsedMs]);
 
   useEffect(() => {
-    if (jsTimedScore !== null && wasmTimedScore !== null) {
+    if (jsTimedDone && wasmTimedDone) {
       setTimedRaceStatus('done');
     }
-  }, [jsTimedScore, wasmTimedScore]);
+  }, [jsTimedDone, wasmTimedDone]);
 
   useEffect(() => {
     if (!isTimedRunning || timedRaceStartedAt === null) {
@@ -300,18 +308,31 @@ export default function WasmVsJsPage() {
 
     jsWorker.onmessage = (event) => {
       const data = event.data || {};
+
+      if (data.type === 'timedProgress') {
+        setJsTimedScore(data.score);
+        setJsTimedElapsedMs(data.elapsedMs);
+      }
+
       if (data.type === 'timedDone') {
         setJsTimedScore(data.score);
         setJsTimedElapsedMs(data.elapsedMs);
+        setJsTimedDone(true);
       }
     };
 
     wasmWorker.onmessage = (event) => {
       const data = event.data || {};
 
+      if (data.type === 'timedProgress') {
+        setWasmTimedScore(data.score);
+        setWasmTimedElapsedMs(data.elapsedMs);
+      }
+
       if (data.type === 'timedDone') {
         setWasmTimedScore(data.score);
         setWasmTimedElapsedMs(data.elapsedMs);
+        setWasmTimedDone(true);
       }
 
       if (data.type === 'error') {
@@ -321,9 +342,22 @@ export default function WasmVsJsPage() {
       }
     };
 
-    jsWorker.postMessage({ type: 'startTimed', durationMs: TIMED_RACE_DURATION_MS });
-    wasmWorker.postMessage({ type: 'startTimed', wasmUrl, durationMs: TIMED_RACE_DURATION_MS });
+    jsWorker.postMessage({
+      type: 'startTimed',
+      durationMs: TIMED_RACE_DURATION_MS,
+      batchSize: timedBatchSize,
+      uiUpdateMs: timedUiUpdateMs,
+    });
+    wasmWorker.postMessage({
+      type: 'startTimed',
+      wasmUrl,
+      durationMs: TIMED_RACE_DURATION_MS,
+      batchSize: timedBatchSize,
+      uiUpdateMs: timedUiUpdateMs,
+    });
   };
+
+  const timedUiModeLabel = timedUiUpdateMs === 16 ? 'Per ~16ms (animation frame)' : `Every ${timedUiUpdateMs}ms`;
 
   const cancelTimedRace = () => {
     stopTimedWorkers();
@@ -449,7 +483,7 @@ export default function WasmVsJsPage() {
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-4">Part 2: 30-Second Endurance Race</h2>
         <p className="text-slate-700 mb-4">
-          Runs an efficient Fibonacci progression for 30 seconds in both JS and WASM. Your score is the highest Fibonacci index each engine reaches in that time.
+          Runs 30 seconds of throughput-oriented Fibonacci progression in both JS and WASM. Both engines use identical wrapping u32 arithmetic, and each update batches many iterations before crossing thread/runtime boundaries.
         </p>
 
         <div className="flex flex-wrap gap-3 mb-4">
@@ -479,6 +513,43 @@ export default function WasmVsJsPage() {
         </div>
 
         {timedErrorMessage ? <p className="mb-3 text-red-600">{timedErrorMessage}</p> : null}
+
+
+        <div className="mb-4 grid md:grid-cols-2 gap-4">
+          <label className="flex flex-col gap-2">
+            <span className="font-semibold">Batch size (iterations per call)</span>
+            <select
+              value={timedBatchSize}
+              onChange={(event) => setTimedBatchSize(Number.parseInt(event.target.value, 10))}
+              className="rounded border border-slate-300 px-3 py-2 bg-white"
+              disabled={isTimedRunning || isRunning}
+            >
+              {TIMED_BATCH_SIZE_OPTIONS.map((batchSizeOption) => (
+                <option key={batchSizeOption} value={batchSizeOption}>
+                  {batchSizeOption.toLocaleString()}
+                </option>
+              ))}
+            </select>
+            <span className="text-sm text-slate-600">Small batches emphasize JS↔WASM call overhead; larger batches emphasize raw compute throughput.</span>
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="font-semibold">UI update frequency</span>
+            <select
+              value={timedUiUpdateMs}
+              onChange={(event) => setTimedUiUpdateMs(Number.parseInt(event.target.value, 10))}
+              className="rounded border border-slate-300 px-3 py-2 bg-white"
+              disabled={isTimedRunning || isRunning}
+            >
+              {TIMED_UI_UPDATE_OPTIONS.map((uiOption) => (
+                <option key={uiOption} value={uiOption}>
+                  {uiOption === 16 ? 'Per ~16ms' : `Every ${uiOption}ms`}
+                </option>
+              ))}
+            </select>
+            <span className="text-sm text-slate-600">Current mode: {timedUiModeLabel}.</span>
+          </label>
+        </div>
 
         <div className="mb-4 rounded-lg border border-slate-200 bg-slate-100 p-3">
           <div className="mb-2 flex items-center justify-between text-sm text-slate-700">
