@@ -136,6 +136,7 @@ function getRankShellTone(rank) {
 export default function SyndicatePage() {
   const demosHref = process.env.NODE_ENV === 'production' ? '/Demos' : '/';
   const [state, setState] = useState(() => createInitialState());
+  const [history, setHistory] = useState([]);
 
   useEffect(() => {
     document.title = 'Syndicate';
@@ -143,7 +144,35 @@ export default function SyndicatePage() {
 
   const promotableRanks = useMemo(() => RANK_LEVELS.filter((rank) => state.members[rank].length === 3), [state.members]);
 
+  function snapshotState(value) {
+    return {
+      ...value,
+      candidates: cloneZones(value.candidates),
+      members: cloneZones(value.members),
+      replacementOptions: value.replacementOptions.map((option) => ({
+        ...option,
+        card: { ...option.card },
+      })),
+      pendingPromotion: value.pendingPromotion
+        ? {
+          ...value.pendingPromotion,
+          card: { ...value.pendingPromotion.card },
+        }
+        : null,
+    };
+  }
+
+  function applyMove(updater) {
+    setState((prev) => {
+      const next = updater(prev);
+      if (next === prev) return prev;
+      setHistory((prevHistory) => [...prevHistory, snapshotState(prev)]);
+      return next;
+    });
+  }
+
   function resetGame() {
+    setHistory([]);
     setState(createInitialState());
   }
 
@@ -163,97 +192,102 @@ export default function SyndicatePage() {
   }
 
   function chooseSourceRank(rank) {
-    if (state.gameState !== 'playing') return;
-    if (state.sacrificeRank !== null) return;
-    if (state.members[rank].length !== 3) return;
+    applyMove((prev) => {
+      if (prev.gameState !== 'playing') return prev;
+      if (prev.sacrificeRank !== null) return prev;
+      if (prev.members[rank].length !== 3) return prev;
 
-    setState((prev) => ({
-      ...prev,
-      selectedSourceRank: rank,
-      selectedMemberIndex: null,
-      replacementOptions: [],
-      promotionDestination: 'members',
-      message: rank === 1
-        ? 'Choose a Rank 1 member to promote for a win.'
-        : `Choose one Rank ${rank} member to promote to Rank ${rank - 1}.`,
-    }));
+      return {
+        ...prev,
+        selectedSourceRank: rank,
+        selectedMemberIndex: null,
+        replacementOptions: [],
+        promotionDestination: 'members',
+        message: rank === 1
+          ? 'Choose a Rank 1 member to promote for a win.'
+          : `Choose one Rank ${rank} member to promote to Rank ${rank - 1}.`,
+      };
+    });
   }
 
 
   function choosePromotionDestination(destination) {
-    if (state.gameState !== 'playing') return;
-    if (state.sacrificeRank !== null) return;
-    if (!state.selectedSourceRank || state.selectedSourceRank === 1) return;
-    if (destination !== 'members' && destination !== 'candidates') return;
+    applyMove((prev) => {
+      if (prev.gameState !== 'playing') return prev;
+      if (prev.sacrificeRank !== null) return prev;
+      if (!prev.selectedSourceRank || prev.selectedSourceRank === 1) return prev;
+      if (destination !== 'members' && destination !== 'candidates') return prev;
 
-    setState((prev) => ({
-      ...prev,
-      promotionDestination: destination,
-      message: destination === 'members'
-        ? `Promotion destination: Rank ${prev.selectedSourceRank - 1} members.`
-        : `Promotion destination: Rank ${prev.selectedSourceRank - 1} candidates.`,
-    }));
+      return {
+        ...prev,
+        promotionDestination: destination,
+        message: destination === 'members'
+          ? `Promotion destination: Rank ${prev.selectedSourceRank - 1} members.`
+          : `Promotion destination: Rank ${prev.selectedSourceRank - 1} candidates.`,
+      };
+    });
   }
 
   function chooseMember(rank, memberIndex) {
-    if (state.gameState !== 'playing') return;
-    if (state.selectedSourceRank !== rank) return;
+    applyMove((prev) => {
+      if (prev.gameState !== 'playing') return prev;
+      if (prev.selectedSourceRank !== rank) return prev;
 
-    if (rank === 1) {
-      const nextMembers = cloneZones(state.members);
-      nextMembers[1] = nextMembers[1].filter((_, index) => index !== memberIndex);
-      setState({
-        ...state,
-        members: nextMembers,
-        gameState: 'won',
-        message: `🎉 Rank 1 cleared. You promoted ${cardLabel(state.members[1][memberIndex])} to Rank 0 and won!`,
-        selectedSourceRank: null,
-        selectedMemberIndex: null,
-        replacementOptions: [],
-      });
-      return;
-    }
+      if (rank === 1) {
+        const nextMembers = cloneZones(prev.members);
+        nextMembers[1] = nextMembers[1].filter((_, index) => index !== memberIndex);
+        return {
+          ...prev,
+          members: nextMembers,
+          gameState: 'won',
+          message: `🎉 Rank 1 cleared. You promoted ${cardLabel(prev.members[1][memberIndex])} to Rank 0 and won!`,
+          selectedSourceRank: null,
+          selectedMemberIndex: null,
+          replacementOptions: [],
+        };
+      }
 
-    const replacementOptions = getReplacementOptions(state, rank, memberIndex);
-    if (replacementOptions.length === 0) {
-      setState((prev) => ({
+      const replacementOptions = getReplacementOptions(prev, rank, memberIndex);
+      if (replacementOptions.length === 0) {
+        return {
+          ...prev,
+          selectedMemberIndex: memberIndex,
+          replacementOptions: [],
+          message: 'That promotion is illegal: no candidate in this rank matches the last-digit replacement rule.',
+        };
+      }
+
+      return {
         ...prev,
         selectedMemberIndex: memberIndex,
-        replacementOptions: [],
-        message: 'That promotion is illegal: no candidate in this rank matches the last-digit replacement rule.',
-      }));
-      return;
-    }
-
-    setState((prev) => ({
-      ...prev,
-      selectedMemberIndex: memberIndex,
-      replacementOptions,
-      message: 'Pick a highlighted candidate to refill the source rank using (a+b)%10 or (a*b)%10.',
-    }));
+        replacementOptions,
+        message: 'Pick a highlighted candidate to refill the source rank using (a+b)%10 or (a*b)%10.',
+      };
+    });
   }
 
   function chooseReplacement(candidateRank, candidateIndex) {
-    if (state.gameState !== 'playing') return;
-    const rank = state.selectedSourceRank;
-    if (!rank || rank === 1 || state.selectedMemberIndex === null) return;
-    if (candidateRank !== rank) return;
+    applyMove((prev) => {
+      if (prev.gameState !== 'playing') return prev;
+      const rank = prev.selectedSourceRank;
+      if (!rank || rank === 1 || prev.selectedMemberIndex === null) return prev;
+      if (candidateRank !== rank) return prev;
 
-    const replacement = state.replacementOptions.find((option) => option.index === candidateIndex);
-    if (!replacement) return;
+      const replacement = prev.replacementOptions.find((option) => option.index === candidateIndex);
+      if (!replacement) return prev;
 
-    const nextMembers = cloneZones(state.members);
-    const nextCandidates = cloneZones(state.candidates);
+      const nextMembers = cloneZones(prev.members);
+      const nextCandidates = cloneZones(prev.candidates);
 
-    const promotedCard = nextMembers[rank][state.selectedMemberIndex];
-    nextMembers[rank] = nextMembers[rank].filter((_, index) => index !== state.selectedMemberIndex);
+      const promotedCard = nextMembers[rank][prev.selectedMemberIndex];
+      nextMembers[rank] = nextMembers[rank].filter((_, index) => index !== prev.selectedMemberIndex);
 
-    const pulledCandidate = nextCandidates[rank][candidateIndex];
-    nextCandidates[rank] = nextCandidates[rank].filter((_, index) => index !== candidateIndex);
+      const pulledCandidate = nextCandidates[rank][candidateIndex];
+      nextCandidates[rank] = nextCandidates[rank].filter((_, index) => index !== candidateIndex);
     nextMembers[rank].push(pulledCandidate);
 
     const targetRank = rank - 1;
-    const promotingToMembers = state.promotionDestination === 'members';
+      const promotingToMembers = prev.promotionDestination === 'members';
 
     if (promotingToMembers) {
       nextMembers[targetRank].push(promotedCard);
@@ -263,8 +297,8 @@ export default function SyndicatePage() {
 
     if (promotingToMembers && nextMembers[targetRank].length > 3) {
       // Overflow is resolved by sacrificing exactly one member from the promoted-into rank.
-      setState({
-        ...state,
+        return {
+          ...prev,
         members: nextMembers,
         candidates: nextCandidates,
         selectedSourceRank: null,
@@ -274,12 +308,11 @@ export default function SyndicatePage() {
         sacrificeRank: targetRank,
         promotionDestination: 'members',
         message: `Rank ${targetRank} overflowed to four members. Choose one card there to sacrifice.`,
-      });
-      return;
+        };
     }
 
     const baseNextState = {
-      ...state,
+        ...prev,
       members: nextMembers,
       candidates: nextCandidates,
       selectedSourceRank: null,
@@ -292,32 +325,50 @@ export default function SyndicatePage() {
         : `Promoted ${cardLabel(promotedCard)} to Rank ${targetRank} candidates.`,
     };
 
-    setState(setLossMessage(baseNextState, 'No legal promotions remain. You are stuck.'));
+      return setLossMessage(baseNextState, 'No legal promotions remain. You are stuck.');
+    });
   }
 
   function chooseSacrifice(memberIndex) {
-    if (state.gameState !== 'playing') return;
-    if (state.sacrificeRank === null) return;
+    applyMove((prev) => {
+      if (prev.gameState !== 'playing') return prev;
+      if (prev.sacrificeRank === null) return prev;
 
-    const rank = state.sacrificeRank;
-    const nextMembers = cloneZones(state.members);
-    const sacrificedCard = nextMembers[rank][memberIndex];
-    if (!sacrificedCard) return;
+      const rank = prev.sacrificeRank;
+      const nextMembers = cloneZones(prev.members);
+      const sacrificedCard = nextMembers[rank][memberIndex];
+      if (!sacrificedCard) return prev;
+      if (prev.pendingPromotion?.card.id === sacrificedCard.id) {
+        return {
+          ...prev,
+          message: `You cannot sacrifice the just-promoted card ${cardLabel(sacrificedCard)}. Pick one of the other members.`,
+        };
+      }
 
-    // Sacrificed cards leave play permanently and increase score (lower is better).
-    nextMembers[rank] = nextMembers[rank].filter((_, index) => index !== memberIndex);
+      // Sacrificed cards leave play permanently and increase score (lower is better).
+      nextMembers[rank] = nextMembers[rank].filter((_, index) => index !== memberIndex);
 
-    const baseNextState = {
-      ...state,
-      members: nextMembers,
-      sacrificedCount: state.sacrificedCount + 1,
-      sacrificeRank: null,
-      pendingPromotion: null,
-      promotionDestination: 'members',
-      message: `Sacrificed ${cardLabel(sacrificedCard)} from Rank ${rank}.`,
-    };
+      const baseNextState = {
+        ...prev,
+        members: nextMembers,
+        sacrificedCount: prev.sacrificedCount + 1,
+        sacrificeRank: null,
+        pendingPromotion: null,
+        promotionDestination: 'members',
+        message: `Sacrificed ${cardLabel(sacrificedCard)} from Rank ${rank}.`,
+      };
 
-    setState(setLossMessage(baseNextState, 'No legal promotions remain after the sacrifice.'));
+      return setLossMessage(baseNextState, 'No legal promotions remain after the sacrifice.');
+    });
+  }
+
+  function handleUndo() {
+    setHistory((prevHistory) => {
+      if (prevHistory.length === 0) return prevHistory;
+      const previousState = prevHistory[prevHistory.length - 1];
+      setState(snapshotState(previousState));
+      return prevHistory.slice(0, -1);
+    });
   }
 
   function handleNewGame() {
@@ -440,16 +491,20 @@ export default function SyndicatePage() {
                     {state.members[rank].map((card, memberIndex) => {
                       const selectable = state.gameState === 'playing' && isSelectedRank;
                       const sacrificeSelectable = state.gameState === 'playing' && state.sacrificeRank === rank;
+                      const isPromotedCard = state.pendingPromotion?.card.id === card.id;
                       const isActive = state.selectedMemberIndex === memberIndex && isSelectedRank;
                       return (
                         <button
                           key={card.id}
                           type="button"
                           onClick={() => (sacrificeSelectable ? chooseSacrifice(memberIndex) : chooseMember(rank, memberIndex))}
-                          disabled={!selectable && !sacrificeSelectable}
+                          disabled={(!selectable && !sacrificeSelectable) || (sacrificeSelectable && isPromotedCard)}
                           className={`min-w-14 px-3 py-2 rounded border text-sm font-semibold ${getCardTone(card)} ${
                             isActive ? 'ring-2 ring-sky-500' : ''
-                          } ${sacrificeSelectable ? 'ring-2 ring-amber-500' : ''} disabled:opacity-70`}
+                          } ${sacrificeSelectable ? 'ring-2 ring-amber-500' : ''} ${
+                            sacrificeSelectable && isPromotedCard ? 'ring-2 ring-slate-400' : ''
+                          } disabled:opacity-70`}
+                          title={sacrificeSelectable && isPromotedCard ? 'Cannot sacrifice the card that was just promoted.' : ''}
                         >
                           {cardLabel(card)}
                         </button>
@@ -499,6 +554,14 @@ export default function SyndicatePage() {
         </p>
 
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleUndo}
+            disabled={history.length === 0}
+            className="px-4 py-2 rounded bg-slate-200 text-slate-800 hover:bg-slate-300 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Undo
+          </button>
           <button
             type="button"
             onClick={handleNewGame}
