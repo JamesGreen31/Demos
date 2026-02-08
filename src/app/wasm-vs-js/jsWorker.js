@@ -7,7 +7,7 @@ function fib(n) {
 }
 
 self.onmessage = (event) => {
-  const { type, iterations } = event.data || {};
+  const { type, iterations, durationMs } = event.data || {};
 
   if (type === 'cancel') {
     self.close();
@@ -15,6 +15,27 @@ self.onmessage = (event) => {
   }
 
   if (type !== 'start') {
+    if (type !== 'startTimed') {
+      return;
+    }
+  }
+
+  if (type === 'startTimed') {
+    const start = performance.now();
+    let points = 0;
+
+    while (performance.now() - start < durationMs) {
+      for (let step = 1; step <= iterations; step += 1) {
+        fib(step);
+        points += 1;
+
+        if (performance.now() - start >= durationMs) {
+          break;
+        }
+      }
+    }
+
+    self.postMessage({ type: 'timedDone', elapsedMs: performance.now() - start, points });
     return;
   }
 
