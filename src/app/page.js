@@ -68,6 +68,12 @@ export default function Home() {
       previewImage: '/dead-center-preview.svg',
     },
     {
+      route: 'skyway',
+      title: 'Skyway',
+      description: 'Guide flights through layered lanes and avoid midair collisions',
+      previewImage: '/skyway-preview.svg',
+    },
+    {
       route: 'loot-the-loop',
       title: 'Loot the Loop',
       description: 'Raid a looping temple, collect jewels, and dodge traps',
