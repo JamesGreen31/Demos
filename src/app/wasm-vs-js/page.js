@@ -83,8 +83,8 @@ export default function WasmVsJsPage() {
 
   const [timedRaceStatus, setTimedRaceStatus] = useState('idle');
   const [timedErrorMessage, setTimedErrorMessage] = useState('');
-  const [jsTimedPoints, setJsTimedPoints] = useState(null);
-  const [wasmTimedPoints, setWasmTimedPoints] = useState(null);
+  const [jsTimedScore, setJsTimedScore] = useState(null);
+  const [wasmTimedScore, setWasmTimedScore] = useState(null);
   const [jsTimedElapsedMs, setJsTimedElapsedMs] = useState(null);
   const [wasmTimedElapsedMs, setWasmTimedElapsedMs] = useState(null);
   const [timedRaceStartedAt, setTimedRaceStartedAt] = useState(null);
@@ -123,26 +123,26 @@ export default function WasmVsJsPage() {
   }, [isDone, jsElapsedMs, wasmElapsedMs]);
 
   const timedWinnerMessage = useMemo(() => {
-    if (!isTimedDone || jsTimedPoints === null || wasmTimedPoints === null) {
+    if (!isTimedDone || jsTimedScore === null || wasmTimedScore === null) {
       return '';
     }
 
-    if (jsTimedPoints === wasmTimedPoints) {
-      return 'Timed race tie! Both implementations scored the same number of points.';
+    if (jsTimedScore === wasmTimedScore) {
+      return 'Timed race tie! Both implementations reached the same score.';
     }
 
-    return jsTimedPoints > wasmTimedPoints
-      ? 'JavaScript earned more points in the 30-second race.'
-      : 'WASM earned more points in the 30-second race.';
-  }, [isTimedDone, jsTimedPoints, wasmTimedPoints]);
+    return jsTimedScore > wasmTimedScore
+      ? 'JavaScript reached a higher Fibonacci score in 30 seconds.'
+      : 'WASM reached a higher Fibonacci score in 30 seconds.';
+  }, [isTimedDone, jsTimedScore, wasmTimedScore]);
 
   const timedPercentDiffMessage = useMemo(() => {
-    if (!isTimedDone || jsTimedPoints === null || wasmTimedPoints === null) {
+    if (!isTimedDone || jsTimedScore === null || wasmTimedScore === null) {
       return '';
     }
 
-    return buildPercentDiffMessage(jsTimedPoints, wasmTimedPoints, 'JavaScript', 'WASM', 'point throughput', false);
-  }, [isTimedDone, jsTimedPoints, wasmTimedPoints]);
+    return buildPercentDiffMessage(jsTimedScore, wasmTimedScore, 'JavaScript', 'WASM', 'score', false);
+  }, [isTimedDone, jsTimedScore, wasmTimedScore]);
 
   const timedRaceProgressPercent = useMemo(() => {
     const elapsedMs = TIMED_RACE_DURATION_MS - timedRaceRemainingMs;
@@ -182,8 +182,8 @@ export default function WasmVsJsPage() {
   };
 
   const resetTimedRace = () => {
-    setJsTimedPoints(null);
-    setWasmTimedPoints(null);
+    setJsTimedScore(null);
+    setWasmTimedScore(null);
     setJsTimedElapsedMs(null);
     setWasmTimedElapsedMs(null);
     setTimedErrorMessage('');
@@ -205,10 +205,10 @@ export default function WasmVsJsPage() {
   }, [jsElapsedMs, wasmElapsedMs]);
 
   useEffect(() => {
-    if (jsTimedPoints !== null && wasmTimedPoints !== null) {
+    if (jsTimedScore !== null && wasmTimedScore !== null) {
       setTimedRaceStatus('done');
     }
-  }, [jsTimedPoints, wasmTimedPoints]);
+  }, [jsTimedScore, wasmTimedScore]);
 
   useEffect(() => {
     if (!isTimedRunning || timedRaceStartedAt === null) {
@@ -301,7 +301,7 @@ export default function WasmVsJsPage() {
     jsWorker.onmessage = (event) => {
       const data = event.data || {};
       if (data.type === 'timedDone') {
-        setJsTimedPoints(data.points);
+        setJsTimedScore(data.score);
         setJsTimedElapsedMs(data.elapsedMs);
       }
     };
@@ -310,7 +310,7 @@ export default function WasmVsJsPage() {
       const data = event.data || {};
 
       if (data.type === 'timedDone') {
-        setWasmTimedPoints(data.points);
+        setWasmTimedScore(data.score);
         setWasmTimedElapsedMs(data.elapsedMs);
       }
 
@@ -321,8 +321,8 @@ export default function WasmVsJsPage() {
       }
     };
 
-    jsWorker.postMessage({ type: 'startTimed', iterations, durationMs: TIMED_RACE_DURATION_MS });
-    wasmWorker.postMessage({ type: 'startTimed', iterations, wasmUrl, durationMs: TIMED_RACE_DURATION_MS });
+    jsWorker.postMessage({ type: 'startTimed', durationMs: TIMED_RACE_DURATION_MS });
+    wasmWorker.postMessage({ type: 'startTimed', wasmUrl, durationMs: TIMED_RACE_DURATION_MS });
   };
 
   const cancelTimedRace = () => {
@@ -449,7 +449,7 @@ export default function WasmVsJsPage() {
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-4">Part 2: 30-Second Endurance Race</h2>
         <p className="text-slate-700 mb-4">
-          Runs the same Fibonacci workload for 30 seconds. Each computed Fibonacci number counts as one point.
+          Runs an efficient Fibonacci progression for 30 seconds in both JS and WASM. Your score is the highest Fibonacci index each engine reaches in that time.
         </p>
 
         <div className="flex flex-wrap gap-3 mb-4">
@@ -501,12 +501,12 @@ export default function WasmVsJsPage() {
         <div className="grid md:grid-cols-2 gap-4">
           <div className="rounded-lg border border-slate-200 p-4">
             <h3 className="text-lg font-semibold mb-1">JavaScript</h3>
-            <p className="text-slate-700">Points: {jsTimedPoints ?? (isTimedRunning ? 'Running...' : '-')}</p>
+            <p className="text-slate-700">Score (max n): {jsTimedScore ?? (isTimedRunning ? 'Running...' : '-')}</p>
             <p className="text-slate-600 text-sm">Elapsed: {formatElapsed(jsTimedElapsedMs) ?? '-'}</p>
           </div>
           <div className="rounded-lg border border-slate-200 p-4">
             <h3 className="text-lg font-semibold mb-1">WASM (Rust)</h3>
-            <p className="text-slate-700">Points: {wasmTimedPoints ?? (isTimedRunning ? 'Running...' : '-')}</p>
+            <p className="text-slate-700">Score (max n): {wasmTimedScore ?? (isTimedRunning ? 'Running...' : '-')}</p>
             <p className="text-slate-600 text-sm">Elapsed: {formatElapsed(wasmTimedElapsedMs) ?? '-'}</p>
           </div>
         </div>

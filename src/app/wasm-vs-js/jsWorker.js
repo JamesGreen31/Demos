@@ -22,20 +22,18 @@ self.onmessage = (event) => {
 
   if (type === 'startTimed') {
     const start = performance.now();
-    let points = 0;
+    let score = 0;
+    let prev = 0;
+    let curr = 1;
 
     while (performance.now() - start < durationMs) {
-      for (let step = 1; step <= iterations; step += 1) {
-        fib(step);
-        points += 1;
-
-        if (performance.now() - start >= durationMs) {
-          break;
-        }
-      }
+      const next = (prev + curr) >>> 0;
+      prev = curr;
+      curr = next;
+      score += 1;
     }
 
-    self.postMessage({ type: 'timedDone', elapsedMs: performance.now() - start, points });
+    self.postMessage({ type: 'timedDone', elapsedMs: performance.now() - start, score });
     return;
   }
 
