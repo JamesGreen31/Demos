@@ -178,7 +178,7 @@ export default function LootTheLoopPage() {
     if (gameState !== 'playing') return;
     if (!exploreValues.includes(value) || value > deck.length) return;
 
-    const exploreOffset = value - 1;
+    const exploreOffset = Math.max(value - 2, 0);
 
     pushUndoSnapshot();
     setReturnLocked(false);
@@ -224,7 +224,7 @@ export default function LootTheLoopPage() {
   function getExplorePreviewState(value) {
     if (!exploreValues.includes(value) || value > deck.length) return { kind: null, index: null };
 
-    const landingIndex = value - 1;
+    const landingIndex = Math.max(value - 2, 0);
 
     const landed = deck[landingIndex] ?? deck[0];
 
