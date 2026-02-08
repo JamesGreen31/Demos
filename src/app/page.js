@@ -43,7 +43,7 @@ export default function Home() {
     {
       route: 'dynamic-programming',
       title: 'Dynamic Programming Demo',
-      description: 'Explore coin-change optimization with DP',
+      description: 'Explore Fibonacci heap powered shortest-path DP',
       previewImage: '/dynamic-programming-preview.svg',
     },
   ];
