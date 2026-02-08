@@ -208,22 +208,24 @@ export default function SkywayPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-100 to-slate-200 px-4 py-10 text-slate-900">
-      <div className="mx-auto max-w-7xl">
-        <a href={demosHref} className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900">
-          <span aria-hidden="true">←</span>
-          Back to Demos
-        </a>
+    <main className="min-h-screen p-6 md:p-8 flex flex-col items-center gap-5 text-slate-900">
+      <div className="w-full max-w-6xl flex items-center justify-start">
+        <button
+          type="button"
+          onClick={() => window.location.assign(demosHref)}
+          className="px-3 py-2 rounded bg-slate-200 hover:bg-slate-300 text-slate-800"
+        >
+          ← Back
+        </button>
+      </div>
 
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Skyway</h1>
-            <p className="text-sm text-slate-600">Market drafting + grid stacking prototype with blueprint routing.</p>
-          </div>
-        </div>
+      <div className="w-full max-w-6xl">
+        <h1 className="text-3xl font-bold text-center">Skyway</h1>
+        <p className="mt-2 text-center text-sm text-slate-600">Market drafting + grid stacking prototype with blueprint routing.</p>
+      </div>
 
-        <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)_280px]">
-          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="w-full max-w-6xl grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_280px]">
+          <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Status Controls</h2>
             <div className="space-y-2 text-sm">
               <p><span className="font-semibold text-slate-700">Round marker:</span> {state.marker}</p>
@@ -231,18 +233,18 @@ export default function SkywayPage() {
               <p><span className="font-semibold text-slate-700">Discard count:</span> {state.discard.length}</p>
               <p><span className="font-semibold text-slate-700">Round #:</span> {state.round}</p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">{turnPrompt}</div>
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">{turnPrompt}</div>
             <div className="grid gap-2">
-              <button type="button" onClick={resetMarket} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Reset market</button>
-              <button type="button" onClick={chooseNextStack} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Choose stack</button>
-              <button type="button" onClick={autoPlaceInFirstValidCell} disabled={validCells.length === 0} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">Place in cell</button>
-              <button type="button" onClick={undoMove} disabled={history.length === 0} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">Undo</button>
-              <button type="button" onClick={startNewGame} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">New game</button>
+              <button type="button" onClick={resetMarket} className="rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500">Reset market</button>
+              <button type="button" onClick={chooseNextStack} className="rounded bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-600">Choose stack</button>
+              <button type="button" onClick={autoPlaceInFirstValidCell} disabled={validCells.length === 0} className="rounded bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-600 disabled:opacity-40">Place in cell</button>
+              <button type="button" onClick={undoMove} disabled={history.length === 0} className="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-40">Undo</button>
+              <button type="button" onClick={startNewGame} className="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">New game</button>
             </div>
           </section>
 
           <section className="space-y-5">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Market Panel</h2>
               <div className="grid gap-3 sm:grid-cols-3">
                 {state.marketStacks.map((stack, stackIndex) => {
@@ -252,7 +254,7 @@ export default function SkywayPage() {
                       type="button"
                       key={`stack-${stackIndex}`}
                       onClick={() => setSelectedStackIndex(stackIndex)}
-                      className={`min-h-36 rounded-xl border p-2 text-left transition ${isSelected ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-200 bg-slate-50 hover:border-slate-300'}`}
+                      className={`min-h-36 rounded-md border p-2 text-left transition ${isSelected ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-200 bg-slate-50 hover:border-slate-300'}`}
                     >
                       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Blueprint {stackIndex + 1}</p>
                       <div className="relative h-20">
@@ -272,7 +274,7 @@ export default function SkywayPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Play Area Panel</h2>
               <div className="grid grid-cols-3 gap-3">
                 {state.grid.map((pile, cellIndex) => {
@@ -283,7 +285,7 @@ export default function SkywayPage() {
                       type="button"
                       key={`cell-${cellIndex}`}
                       onClick={() => placeCardInCell(cellIndex)}
-                      className={`relative min-h-28 rounded-xl border p-2 text-left transition ${isValidDrop ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}
+                      className={`relative min-h-28 rounded-md border p-2 text-left transition ${isValidDrop ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}
                     >
                       <p className="text-xs font-semibold text-slate-500">Cell {cellIndex + 1}</p>
                       <div className="relative mt-2 h-16">
@@ -305,12 +307,12 @@ export default function SkywayPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Endgame Panel</h2>
             <p className="mb-4 text-sm text-slate-600">Build each suit from 1 upward. Streak 5+ passes the skyway check.</p>
             <div className="space-y-2">
               {suitProgress.map((item) => (
-                <div key={item.suit} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                <div key={item.suit} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
                   <span className={`font-semibold ${SUIT_COLORS[item.suit]}`}>{item.suit} sequence</span>
                   <span className="text-slate-600">len {item.streak}</span>
                   <span className={item.passed ? 'font-semibold text-emerald-600' : 'font-semibold text-rose-600'}>{item.passed ? 'PASS' : 'FAIL'}</span>
@@ -319,7 +321,6 @@ export default function SkywayPage() {
             </div>
           </section>
         </div>
-      </div>
     </main>
   );
 }
