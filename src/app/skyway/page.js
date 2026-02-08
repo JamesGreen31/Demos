@@ -224,6 +224,31 @@ export default function SkywayPage() {
         <p className="mt-2 text-center text-sm text-slate-600">Market drafting + grid stacking prototype with blueprint routing.</p>
       </div>
 
+      <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-3 text-2xl font-semibold">What is Skyway?</h2>
+        <p className="mb-3 text-slate-700">
+          Skyway is a solo sequencing prototype where you draft a visible market stack and place its top blueprint card into a 3×3 build grid.
+          Each placement grows suit-specific runs while preserving strict ascending order.
+        </p>
+        <p className="text-slate-700">
+          Your goal is to assemble clean per-suit routes from value 1 upward. The endgame panel tracks each suit&apos;s current streak and marks PASS
+          once a suit reaches five connected values.
+        </p>
+      </section>
+
+      <section className="w-full max-w-6xl rounded-xl border border-blue-200 bg-[#eef6ff] p-5 shadow-sm">
+        <h2 className="mb-3 text-2xl font-semibold">How to play</h2>
+        <ul className="list-disc space-y-2 pl-5 text-slate-700">
+          <li>Select one of the three market blueprint stacks. The selected stack is highlighted.</li>
+          <li>The top card of that stack is your active card for this turn.</li>
+          <li>Drop the active card into any glowing valid cell in the 3×3 play area.</li>
+          <li>A cell is valid when it is empty, or when its top card has the same suit and exactly one lower value.</li>
+          <li>Use <strong>Choose stack</strong> to cycle through non-empty stacks and <strong>Place in cell</strong> to auto-place in the first valid cell.</li>
+          <li>Use <strong>Reset market</strong> to reshuffle market/deck/discard into fresh blueprint stacks.</li>
+          <li><strong>Undo</strong> reverts the latest action snapshot, and <strong>New game</strong> starts from a brand-new shuffled setup.</li>
+        </ul>
+      </section>
+
       <div className="w-full max-w-6xl grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_280px]">
           <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Status Controls</h2>
