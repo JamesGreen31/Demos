@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
 const SUITS = ['♠', '♥', '♦', '♣'];
-const FACE_RANKS = ['J', 'Q', 'K'];
 const SUIT_COLORS = {
   '♠': 'text-slate-900',
   '♣': 'text-slate-900',
@@ -33,20 +32,6 @@ function buildDeck() {
   }
 
   return shuffle(deck);
-}
-
-function createRoundMarkers() {
-  const markers = [];
-  let id = 1000;
-
-  for (const suit of SUITS) {
-    for (const rank of FACE_RANKS) {
-      markers.push({ id, rank, suit });
-      id += 1;
-    }
-  }
-
-  return shuffle(markers).slice(0, 3);
 }
 
 function formatCard(card) {
@@ -137,13 +122,11 @@ function dealMarket(state, allowFinalTopUp) {
 }
 
 function createInitialState() {
-  const roundMarkers = createRoundMarkers();
   const seed = {
     deck: buildDeck(),
     discard: [],
     marketStacks: [[], [], []],
     grid: Array.from({ length: 9 }, () => []),
-    roundMarkers,
     passesCompleted: 0,
     finalTopUpUsed: false,
     turn: 0,
@@ -342,7 +325,7 @@ export default function SkywayPage() {
         <ul className="list-disc pl-5 space-y-2 text-slate-700">
           <li><strong>Overview:</strong> Over three passes through the deck, draft stacks of cards from the market and place them in your 3x3 grid. Each cell may stack only three cards high; overflow cards are discarded from the bottom.</li>
           <li><strong>Components:</strong> A standard 52-card deck with no jokers.</li>
-          <li><strong>Setup:</strong> Separate all twelve face cards. Choose any three face cards as round markers and remove the rest. Shuffle the remaining 40-card deck and set space for discard, a 3-space market, and a 3x3 play area. Turn one round marker face down to mark round one.</li>
+          <li><strong>Setup:</strong> Remove all twelve face cards, then shuffle the remaining 40-card deck and set space for discard, a 3-space market, and a 3x3 play area.</li>
           <li><strong>Turn structure:</strong> (1) Reset the market by dealing five cards into three stacks in a fixed 2-2-1 pattern. (2) Draft one stack and discard the other two. Place the drafted stack into one grid cell without reordering cards.</li>
           <li><strong>Stack limit:</strong> If a cell exceeds three cards after placement, discard bottom cards until only three remain in that cell.</li>
           <li><strong>Second and third round:</strong> When the deck runs out, shuffle discard to form a new deck and continue. During the third pass, if the deck runs out while dealing a market, shuffle once more only to finish that final market.</li>
@@ -359,22 +342,6 @@ export default function SkywayPage() {
             <p><span className="font-semibold text-slate-700">Discard:</span> {state.discard.length}</p>
             <p><span className="font-semibold text-slate-700">Round:</span> {Math.min(state.passesCompleted + 1, 3)} / 3</p>
             <p><span className="font-semibold text-slate-700">Final top-up used:</span> {state.finalTopUpUsed ? 'Yes' : 'No'}</p>
-          </div>
-          <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Round markers</p>
-            <div className="flex gap-2">
-              {state.roundMarkers.map((marker, index) => {
-                const turnedDown = index < state.passesCompleted;
-                return (
-                  <div
-                    key={marker.id}
-                    className={`flex h-10 w-8 items-center justify-center rounded border text-xs font-bold ${turnedDown ? 'border-slate-300 bg-slate-200 text-slate-500' : `border-slate-300 bg-white ${SUIT_COLORS[marker.suit]}`}`}
-                  >
-                    {turnedDown ? '🂠' : `${marker.rank}${marker.suit}`}
-                  </div>
-                );
-              })}
-            </div>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
             {state.gameOver
@@ -394,14 +361,20 @@ export default function SkywayPage() {
             <div className="grid gap-3 sm:grid-cols-3">
               {state.marketStacks.map((stack, stackIndex) => {
                 const isSelected = selectedStackIndex === stackIndex;
+                const hasSelection = selectedStackIndex !== null;
                 const isEmpty = stack.length === 0;
+                const marketColorClasses = isSelected
+                  ? 'border-emerald-500 bg-emerald-100 shadow-sm'
+                  : hasSelection
+                    ? 'border-rose-500 bg-rose-100'
+                    : 'border-slate-200 bg-slate-50 hover:border-sky-400 hover:ring-2 hover:ring-sky-200';
                 return (
                   <button
                     type="button"
                     key={`stack-${stackIndex}`}
                     onClick={() => !state.gameOver && !isEmpty && setSelectedStackIndex(stackIndex)}
                     disabled={state.gameOver || isEmpty}
-                    className={`min-h-36 rounded-md border p-2 text-left transition disabled:opacity-50 ${isSelected ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-200 bg-slate-50 hover:border-sky-400 hover:ring-2 hover:ring-sky-200'}`}
+                    className={`min-h-36 rounded-md border p-2 text-left transition disabled:opacity-50 ${marketColorClasses}`}
                   >
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Blueprint {stackIndex + 1}</p>
                     <div className="mt-1 flex min-h-20 flex-wrap gap-2">
