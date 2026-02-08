@@ -2,12 +2,42 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-const MIN_ITERATIONS = 10;
-const MAX_ITERATIONS = 30;
-const DEFAULT_ITERATIONS = 22;
+const MIN_ITERATIONS = 30;
+const MAX_ITERATIONS = 45;
+const DEFAULT_ITERATIONS = 36;
+const TIMED_RACE_DURATION_MS = 30_000;
 
 function buildProgressList(iterations) {
   return Array.from({ length: iterations }, () => false);
+}
+
+function formatElapsed(elapsedMs) {
+  if (elapsedMs === null) {
+    return null;
+  }
+
+  if (elapsedMs >= 1000) {
+    return `${(elapsedMs / 1000).toFixed(2)} s`;
+  }
+
+  return `${elapsedMs.toFixed(1)} ms`;
+}
+
+function buildPercentDiffMessage(firstValue, secondValue, firstLabel, secondLabel, metricName, lowerWins = true) {
+  if (firstValue === null || secondValue === null || firstValue === secondValue) {
+    return `No % difference for ${metricName}; both results are tied.`;
+  }
+
+  const winner = lowerWins
+    ? firstValue < secondValue
+      ? firstLabel
+      : secondLabel
+    : firstValue > secondValue
+      ? firstLabel
+      : secondLabel;
+
+  const percentDiff = (Math.abs(firstValue - secondValue) / Math.max(firstValue, secondValue)) * 100;
+  return `${winner} leads by ${percentDiff.toFixed(2)}% in ${metricName}.`;
 }
 
 function StatusBar({ label, colorClassName, progress, elapsedMs, running }) {
@@ -19,7 +49,7 @@ function StatusBar({ label, colorClassName, progress, elapsedMs, running }) {
         <h3 className="text-lg font-semibold">{label}</h3>
         <span className="text-sm text-slate-700">
           {completedCount}/{progress.length} complete
-          {elapsedMs !== null ? ` • ${elapsedMs.toFixed(1)} ms` : running ? ' • Running...' : ''}
+          {elapsedMs !== null ? ` • ${formatElapsed(elapsedMs)}` : running ? ' • Running...' : ''}
         </span>
       </div>
       <div
@@ -51,11 +81,22 @@ export default function WasmVsJsPage() {
   const [raceStatus, setRaceStatus] = useState('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
+  const [timedRaceStatus, setTimedRaceStatus] = useState('idle');
+  const [timedErrorMessage, setTimedErrorMessage] = useState('');
+  const [jsTimedPoints, setJsTimedPoints] = useState(null);
+  const [wasmTimedPoints, setWasmTimedPoints] = useState(null);
+  const [jsTimedElapsedMs, setJsTimedElapsedMs] = useState(null);
+  const [wasmTimedElapsedMs, setWasmTimedElapsedMs] = useState(null);
+
   const jsWorkerRef = useRef(null);
   const wasmWorkerRef = useRef(null);
+  const jsTimedWorkerRef = useRef(null);
+  const wasmTimedWorkerRef = useRef(null);
 
   const isRunning = raceStatus === 'running';
   const isDone = raceStatus === 'done';
+  const isTimedRunning = timedRaceStatus === 'running';
+  const isTimedDone = timedRaceStatus === 'done';
 
   const winnerMessage = useMemo(() => {
     if (!isDone || jsElapsedMs === null || wasmElapsedMs === null) {
@@ -71,6 +112,36 @@ export default function WasmVsJsPage() {
       : 'WASM finished first in this run.';
   }, [isDone, jsElapsedMs, wasmElapsedMs]);
 
+  const percentDiffMessage = useMemo(() => {
+    if (!isDone || jsElapsedMs === null || wasmElapsedMs === null) {
+      return '';
+    }
+
+    return buildPercentDiffMessage(jsElapsedMs, wasmElapsedMs, 'JavaScript', 'WASM', 'speed');
+  }, [isDone, jsElapsedMs, wasmElapsedMs]);
+
+  const timedWinnerMessage = useMemo(() => {
+    if (!isTimedDone || jsTimedPoints === null || wasmTimedPoints === null) {
+      return '';
+    }
+
+    if (jsTimedPoints === wasmTimedPoints) {
+      return 'Timed race tie! Both implementations scored the same number of points.';
+    }
+
+    return jsTimedPoints > wasmTimedPoints
+      ? 'JavaScript earned more points in the 30-second race.'
+      : 'WASM earned more points in the 30-second race.';
+  }, [isTimedDone, jsTimedPoints, wasmTimedPoints]);
+
+  const timedPercentDiffMessage = useMemo(() => {
+    if (!isTimedDone || jsTimedPoints === null || wasmTimedPoints === null) {
+      return '';
+    }
+
+    return buildPercentDiffMessage(jsTimedPoints, wasmTimedPoints, 'JavaScript', 'WASM', 'point throughput', false);
+  }, [isTimedDone, jsTimedPoints, wasmTimedPoints]);
+
   const stopWorkers = () => {
     if (jsWorkerRef.current) {
       jsWorkerRef.current.terminate();
@@ -83,6 +154,18 @@ export default function WasmVsJsPage() {
     }
   };
 
+  const stopTimedWorkers = () => {
+    if (jsTimedWorkerRef.current) {
+      jsTimedWorkerRef.current.terminate();
+      jsTimedWorkerRef.current = null;
+    }
+
+    if (wasmTimedWorkerRef.current) {
+      wasmTimedWorkerRef.current.terminate();
+      wasmTimedWorkerRef.current = null;
+    }
+  };
+
   const resetProgress = (nextIterations = iterations) => {
     setJsProgress(buildProgressList(nextIterations));
     setWasmProgress(buildProgressList(nextIterations));
@@ -91,8 +174,19 @@ export default function WasmVsJsPage() {
     setErrorMessage('');
   };
 
+  const resetTimedRace = () => {
+    setJsTimedPoints(null);
+    setWasmTimedPoints(null);
+    setJsTimedElapsedMs(null);
+    setWasmTimedElapsedMs(null);
+    setTimedErrorMessage('');
+  };
+
   useEffect(() => {
-    return () => stopWorkers();
+    return () => {
+      stopWorkers();
+      stopTimedWorkers();
+    };
   }, []);
 
   useEffect(() => {
@@ -100,6 +194,12 @@ export default function WasmVsJsPage() {
       setRaceStatus('done');
     }
   }, [jsElapsedMs, wasmElapsedMs]);
+
+  useEffect(() => {
+    if (jsTimedPoints !== null && wasmTimedPoints !== null) {
+      setTimedRaceStatus('done');
+    }
+  }, [jsTimedPoints, wasmTimedPoints]);
 
   const beginRace = () => {
     stopWorkers();
@@ -157,6 +257,55 @@ export default function WasmVsJsPage() {
     resetProgress(iterations);
   };
 
+  const beginTimedRace = () => {
+    stopTimedWorkers();
+    resetTimedRace();
+    setTimedRaceStatus('running');
+
+    const jsWorker = new Worker(new URL('./jsWorker.js', import.meta.url));
+    const wasmWorker = new Worker(new URL('./wasmWorker.js', import.meta.url));
+
+    jsTimedWorkerRef.current = jsWorker;
+    wasmTimedWorkerRef.current = wasmWorker;
+
+    jsWorker.onmessage = (event) => {
+      const data = event.data || {};
+      if (data.type === 'timedDone') {
+        setJsTimedPoints(data.points);
+        setJsTimedElapsedMs(data.elapsedMs);
+      }
+    };
+
+    wasmWorker.onmessage = (event) => {
+      const data = event.data || {};
+
+      if (data.type === 'timedDone') {
+        setWasmTimedPoints(data.points);
+        setWasmTimedElapsedMs(data.elapsedMs);
+      }
+
+      if (data.type === 'error') {
+        setTimedErrorMessage(data.message || 'Unexpected WASM worker failure');
+        setTimedRaceStatus('idle');
+        stopTimedWorkers();
+      }
+    };
+
+    jsWorker.postMessage({ type: 'startTimed', iterations, durationMs: TIMED_RACE_DURATION_MS });
+    wasmWorker.postMessage({ type: 'startTimed', iterations, wasmUrl, durationMs: TIMED_RACE_DURATION_MS });
+  };
+
+  const cancelTimedRace = () => {
+    stopTimedWorkers();
+    setTimedRaceStatus('idle');
+  };
+
+  const clearTimedRace = () => {
+    stopTimedWorkers();
+    setTimedRaceStatus('idle');
+    resetTimedRace();
+  };
+
   return (
     <main className="min-h-screen p-6 md:p-8 flex flex-col items-center gap-5">
       <div className="w-full max-w-6xl flex items-center justify-between">
@@ -186,7 +335,7 @@ export default function WasmVsJsPage() {
       <section className="w-full max-w-6xl rounded-xl border border-blue-200 bg-[#eef6ff] p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-3">How to play</h2>
         <ul className="list-disc pl-5 space-y-2 text-slate-700">
-          <li>Use the slider to pick iteration count X between 10 and 30.</li>
+          <li>Use the slider to pick iteration count X between 30 and 45.</li>
           <li>Press <strong>Begin Race!</strong> to start JavaScript and WASM at the same time.</li>
           <li>Each progress strip has X sub-bars, one per Fibonacci number completed.</li>
           <li>Use <strong>Cancel</strong> to stop an active race, or <strong>Reset</strong> to clear the board.</li>
@@ -194,7 +343,7 @@ export default function WasmVsJsPage() {
       </section>
 
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-2xl font-semibold mb-4">Game / Visualization</h2>
+        <h2 className="text-2xl font-semibold mb-4">Part 1: Iteration Race</h2>
 
         <label className="flex flex-col gap-2 mb-4">
           <span className="font-semibold">Iterations (X): {iterations}</span>
@@ -206,13 +355,13 @@ export default function WasmVsJsPage() {
             onChange={(event) => {
               const nextIterations = Number.parseInt(event.target.value, 10);
               setIterations(nextIterations);
-              if (!isRunning) {
+              if (!isRunning && !isTimedRunning) {
                 resetProgress(nextIterations);
               }
             }}
             className="w-full"
             aria-label="Iteration count slider"
-            disabled={isRunning}
+            disabled={isRunning || isTimedRunning}
           />
           <span className="text-sm text-slate-600">Higher values make recursion cost grow quickly.</span>
         </label>
@@ -221,7 +370,7 @@ export default function WasmVsJsPage() {
           <button
             type="button"
             onClick={beginRace}
-            disabled={isRunning}
+            disabled={isRunning || isTimedRunning}
             className="px-4 py-2 rounded bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-emerald-300"
           >
             Begin Race!
@@ -263,6 +412,58 @@ export default function WasmVsJsPage() {
         </div>
 
         {winnerMessage ? <p className="mt-4 font-semibold text-slate-800">{winnerMessage}</p> : null}
+        {percentDiffMessage ? <p className="mt-2 text-slate-700">{percentDiffMessage}</p> : null}
+      </section>
+
+      <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold mb-4">Part 2: 30-Second Endurance Race</h2>
+        <p className="text-slate-700 mb-4">
+          Runs the same Fibonacci workload for 30 seconds. Each computed Fibonacci number counts as one point.
+        </p>
+
+        <div className="flex flex-wrap gap-3 mb-4">
+          <button
+            type="button"
+            onClick={beginTimedRace}
+            disabled={isTimedRunning || isRunning}
+            className="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-indigo-300"
+          >
+            Start 30s Race
+          </button>
+          <button
+            type="button"
+            onClick={cancelTimedRace}
+            disabled={!isTimedRunning}
+            className="px-4 py-2 rounded bg-red-700 text-white hover:bg-red-600 disabled:bg-red-300"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={clearTimedRace}
+            className="px-4 py-2 rounded bg-slate-800 text-white hover:bg-slate-700"
+          >
+            Reset
+          </button>
+        </div>
+
+        {timedErrorMessage ? <p className="mb-3 text-red-600">{timedErrorMessage}</p> : null}
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="rounded-lg border border-slate-200 p-4">
+            <h3 className="text-lg font-semibold mb-1">JavaScript</h3>
+            <p className="text-slate-700">Points: {jsTimedPoints ?? (isTimedRunning ? 'Running...' : '-')}</p>
+            <p className="text-slate-600 text-sm">Elapsed: {formatElapsed(jsTimedElapsedMs) ?? '-'}</p>
+          </div>
+          <div className="rounded-lg border border-slate-200 p-4">
+            <h3 className="text-lg font-semibold mb-1">WASM (Rust)</h3>
+            <p className="text-slate-700">Points: {wasmTimedPoints ?? (isTimedRunning ? 'Running...' : '-')}</p>
+            <p className="text-slate-600 text-sm">Elapsed: {formatElapsed(wasmTimedElapsedMs) ?? '-'}</p>
+          </div>
+        </div>
+
+        {timedWinnerMessage ? <p className="mt-4 font-semibold text-slate-800">{timedWinnerMessage}</p> : null}
+        {timedPercentDiffMessage ? <p className="mt-2 text-slate-700">{timedPercentDiffMessage}</p> : null}
       </section>
     </main>
   );
