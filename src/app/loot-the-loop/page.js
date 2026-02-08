@@ -36,6 +36,7 @@ function cloneStateSnapshot(state) {
     score: state.score.map((card) => ({ ...card })),
     gameState: state.gameState,
     message: state.message,
+    lastLandedCardId: state.lastLandedCardId,
   };
 }
 
@@ -80,6 +81,7 @@ export default function LootTheLoopPage() {
   const [isMarkHovered, setIsMarkHovered] = useState(false);
   const [returnLocked, setReturnLocked] = useState(false);
   const [visibleRooms, setVisibleRooms] = useState(16);
+  const [lastLandedCardId, setLastLandedCardId] = useState(null);
 
   const jewelsCollected = useMemo(
     () => score.filter((card) => card.type === 'jewel').length,
@@ -111,10 +113,11 @@ export default function LootTheLoopPage() {
     setHoveredExploreValue(null);
     setIsMarkHovered(false);
     setReturnLocked(false);
+    setLastLandedCardId(null);
   }
 
   function pushUndoSnapshot() {
-    const snapshot = cloneStateSnapshot({ deck, notes, score, gameState, message });
+    const snapshot = cloneStateSnapshot({ deck, notes, score, gameState, message, lastLandedCardId });
     setUndoStack((prev) => [...prev, snapshot]);
   }
 
@@ -148,6 +151,7 @@ export default function LootTheLoopPage() {
 
     setUndoStack([]);
     setReturnLocked(false);
+    setLastLandedCardId(null);
     applyAndCheck(nextDeck, notes, score, 'You scan ahead and map more of the temple loop.');
   }
 
@@ -178,7 +182,7 @@ export default function LootTheLoopPage() {
     if (gameState !== 'playing') return;
     if (!exploreValues.includes(value) || value > deck.length) return;
 
-    const exploreOffset = Math.max(value - 1, 0);
+    const exploreOffset = Math.max(value, 0);
 
     pushUndoSnapshot();
     setReturnLocked(false);
@@ -188,6 +192,7 @@ export default function LootTheLoopPage() {
     const nextScore = score.map((card) => ({ ...card }));
 
     const landed = nextDeck[0];
+    setLastLandedCardId(landed?.id ?? null);
     let nextMessage = `Explored ${value} rooms.`;
 
     if (landed?.faceUp && landed.type === 'trap') {
@@ -224,19 +229,19 @@ export default function LootTheLoopPage() {
   function getExplorePreviewState(value) {
     if (!exploreValues.includes(value) || value > deck.length) return { kind: null, index: null };
 
-    const landingIndex = Math.max(value - 1, 0);
+    const landingIndex = Math.max(value, 0) % deck.length;
 
     const landed = deck[landingIndex] ?? deck[0];
 
     if (!landed) return { kind: null, index: null };
-    if (landed.type === 'jewel') return { kind: 'jewel', index: landingIndex % deck.length };
-    if (!landed.faceUp) return { kind: 'hidden', index: landingIndex % deck.length };
-    if (landed.type === 'trap') return { kind: 'trap', index: landingIndex % deck.length };
+    if (landed.type === 'jewel') return { kind: 'jewel', index: landingIndex };
+    if (!landed.faceUp) return { kind: 'hidden', index: landingIndex };
+    if (landed.type === 'trap') return { kind: 'trap', index: landingIndex };
     if (landed.type === 'exit') {
-      return { kind: canEscape ? 'stairs' : 'stone', index: landingIndex % deck.length };
+      return { kind: canEscape ? 'stairs' : 'stone', index: landingIndex };
     }
 
-    return { kind: 'path', index: landingIndex % deck.length };
+    return { kind: 'path', index: landingIndex };
   }
 
   function handleUndoMove() {
@@ -247,6 +252,7 @@ export default function LootTheLoopPage() {
     setScore(snapshot.score.map((card) => ({ ...card })));
     setGameState(snapshot.gameState);
     setMessage(snapshot.message);
+    setLastLandedCardId(snapshot.lastLandedCardId ?? null);
     setUndoStack((prev) => prev.slice(0, -1));
     setHoveredExploreValue(null);
     setIsMarkHovered(false);
@@ -258,6 +264,12 @@ export default function LootTheLoopPage() {
   const markCaptureIndex = isMarkHovered && deck[0]?.faceUp && deck[0].type === 'path' && notes.length < 3 && !returnLocked ? 0 : null;
 
   function getHighlightClass(index) {
+    const card = deck[index];
+
+    if (card?.id && card.id === lastLandedCardId) {
+      return 'bg-emerald-100 border-emerald-500 ring-2 ring-emerald-300';
+    }
+
     if (index === hoveredExploreLandingIndex || index === markCaptureIndex) {
       return 'bg-yellow-100 border-yellow-400';
     }
