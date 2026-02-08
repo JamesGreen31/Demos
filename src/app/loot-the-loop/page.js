@@ -252,21 +252,9 @@ export default function LootTheLoopPage() {
   const hoveredExplorePreview = hoveredExploreValue ? getExplorePreviewState(hoveredExploreValue) : { kind: null, index: null };
   const hoveredExploreLandingIndex = hoveredExplorePreview.index;
   const markCaptureIndex = isMarkHovered && deck[0]?.faceUp && deck[0].type === 'path' && notes.length < 3 && !returnLocked ? 0 : null;
-  const roomsVisibleCount = Math.max(Math.min(visibleRooms, deck.length), hoveredExploreLandingIndex !== null ? hoveredExploreLandingIndex + 1 : 0);
 
   function getHighlightClass(index) {
-    if (index === hoveredExploreLandingIndex) {
-      if (hoveredExplorePreview.kind === 'trap') return 'bg-red-200 border-red-400';
-      if (hoveredExplorePreview.kind === 'jewel' || hoveredExplorePreview.kind === 'stairs') {
-        return 'bg-emerald-200 border-emerald-400';
-      }
-      if (hoveredExplorePreview.kind === 'path') return 'bg-yellow-100 border-yellow-400';
-      if (hoveredExplorePreview.kind === 'stone' || hoveredExplorePreview.kind === 'hidden') {
-        return 'bg-sky-200 border-sky-400';
-      }
-    }
-
-    if (index === markCaptureIndex) {
+    if (index === hoveredExploreLandingIndex || index === markCaptureIndex) {
       return 'bg-yellow-100 border-yellow-400';
     }
 
@@ -349,7 +337,7 @@ export default function LootTheLoopPage() {
             className="mb-4 w-full accent-blue-600"
           />
           <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-13 gap-2">
-            {deck.slice(0, roomsVisibleCount).map((card, index) => (
+            {deck.slice(0, visibleRooms).map((card, index) => (
               <div
                 key={card.id}
                 className={`rounded-md border p-2 text-center text-sm ${
