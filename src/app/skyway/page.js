@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 const SUITS = ['♠', '♥', '♦', '♣'];
+const FACE_RANKS = ['J', 'Q', 'K'];
 const SUIT_COLORS = {
   '♠': 'text-slate-900',
   '♣': 'text-slate-900',
@@ -34,6 +35,20 @@ function buildDeck() {
   return shuffle(deck);
 }
 
+function createRoundMarkers() {
+  const markers = [];
+  let id = 1000;
+
+  for (const suit of SUITS) {
+    for (const rank of FACE_RANKS) {
+      markers.push({ id, rank, suit });
+      id += 1;
+    }
+  }
+
+  return shuffle(markers).slice(0, 3);
+}
+
 function formatCard(card) {
   if (!card) return '';
   const rank = card.value === 1 ? 'A' : String(card.value);
@@ -47,6 +62,7 @@ function cloneStateSnapshot(snapshot) {
     discard: snapshot.discard.map((card) => ({ ...card })),
     marketStacks: snapshot.marketStacks.map((stack) => stack.map((card) => ({ ...card }))),
     grid: snapshot.grid.map((stack) => stack.map((card) => ({ ...card }))),
+    roundMarkers: snapshot.roundMarkers.map((marker) => ({ ...marker })),
   };
 }
 
@@ -126,11 +142,13 @@ function dealMarket(state, allowFinalTopUp) {
 }
 
 function createInitialState() {
+  const roundMarkers = createRoundMarkers();
   const seed = {
     deck: buildDeck(),
     discard: [],
     marketStacks: [[], [], []],
     grid: Array.from({ length: 9 }, () => []),
+    roundMarkers,
     passesCompleted: 0,
     finalTopUpUsed: false,
     turn: 0,
@@ -330,6 +348,22 @@ export default function SkywayPage() {
             <p><span className="font-semibold text-slate-700">Round:</span> {Math.min(state.passesCompleted + 1, 3)} / 3</p>
             <p><span className="font-semibold text-slate-700">Final top-up used:</span> {state.finalTopUpUsed ? 'Yes' : 'No'}</p>
           </div>
+          <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Round markers</p>
+            <div className="flex gap-2">
+              {state.roundMarkers.map((marker, index) => {
+                const turnedDown = index < state.passesCompleted;
+                return (
+                  <div
+                    key={marker.id}
+                    className={`flex h-10 w-8 items-center justify-center rounded border text-xs font-bold ${turnedDown ? 'border-slate-300 bg-slate-200 text-slate-500' : `border-slate-300 bg-white ${SUIT_COLORS[marker.suit]}`}`}
+                  >
+                    {turnedDown ? '🂠' : `${marker.rank}${marker.suit}`}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
             {state.gameOver
               ? 'Game over: no cards remain to fully reset the market.'
@@ -359,12 +393,11 @@ export default function SkywayPage() {
                     className={`min-h-36 rounded-md border p-2 text-left transition disabled:opacity-50 ${isSelected ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-200 bg-slate-50 hover:border-slate-300'}`}
                   >
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Blueprint {stackIndex + 1}</p>
-                    <div className="relative h-20">
-                      {stack.map((card, cardIndex) => (
+                    <div className="mt-1 flex min-h-20 flex-wrap gap-2">
+                      {stack.map((card) => (
                         <div
                           key={card.id}
-                          className={`absolute left-0 top-0 flex h-16 w-12 items-center justify-center rounded-lg border border-slate-300 bg-white text-sm font-bold shadow-sm ${SUIT_COLORS[card.suit]}`}
-                          style={{ transform: `translate(${cardIndex * 11}px, ${cardIndex * 2}px)` }}
+                          className={`flex h-16 w-12 items-center justify-center rounded-lg border border-slate-300 bg-white text-sm font-bold shadow-sm ${SUIT_COLORS[card.suit]}`}
                         >
                           {formatCard(card)}
                         </div>
@@ -389,12 +422,11 @@ export default function SkywayPage() {
                   className={`relative min-h-28 rounded-md border p-2 text-left transition ${canPlace ? 'border-emerald-300 bg-emerald-50 hover:border-emerald-500' : 'border-slate-200 bg-slate-50'}`}
                 >
                   <p className="text-xs font-semibold text-slate-500">Cell {cellIndex + 1}</p>
-                  <div className="relative mt-2 h-16">
+                  <div className="mt-2 flex min-h-16 flex-wrap gap-2">
                     {pile.map((card, idx) => (
                       <div
                         key={`${card.id}-${idx}`}
-                        className={`absolute left-0 top-0 flex h-14 w-10 items-center justify-center rounded-md border border-slate-300 bg-white text-xs font-bold shadow-sm ${SUIT_COLORS[card.suit]}`}
-                        style={{ transform: `translateX(${idx * 14}px)` }}
+                        className={`flex h-14 w-10 items-center justify-center rounded-md border border-slate-300 bg-white text-xs font-bold shadow-sm ${SUIT_COLORS[card.suit]}`}
                       >
                         {formatCard(card)}
                       </div>
