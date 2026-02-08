@@ -8,7 +8,7 @@ function fib(n) {
 
 function runTimedRace({ durationMs, batchSize, uiUpdateMs }) {
   const start = performance.now();
-  let score = 0;
+  let position = 0n;
   let prev = 0;
   let curr = 1;
   let nextUiUpdateAt = start + uiUpdateMs;
@@ -18,17 +18,18 @@ function runTimedRace({ durationMs, batchSize, uiUpdateMs }) {
       const next = (prev + curr) >>> 0;
       prev = curr;
       curr = next;
-      score += 1;
     }
+
+    position += BigInt(batchSize);
 
     const now = performance.now();
     if (now >= nextUiUpdateAt) {
-      self.postMessage({ type: 'timedProgress', score, elapsedMs: now - start });
+      self.postMessage({ type: 'timedProgress', position, elapsedMs: now - start });
       nextUiUpdateAt = now + uiUpdateMs;
     }
   }
 
-  self.postMessage({ type: 'timedDone', elapsedMs: performance.now() - start, score });
+  self.postMessage({ type: 'timedDone', elapsedMs: performance.now() - start, position });
 }
 
 self.onmessage = (event) => {
