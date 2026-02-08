@@ -9,73 +9,207 @@ const SUIT_COLORS = {
   '♥': 'text-rose-700',
   '♦': 'text-rose-700',
 };
+const DEAL_ORDER = [0, 1, 2, 0, 1];
+
+function shuffle(cards) {
+  const next = [...cards];
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+  return next;
+}
 
 function buildDeck() {
   const deck = [];
   let id = 1;
+
   for (const suit of SUITS) {
-    for (let value = 1; value <= 9; value += 1) {
-      deck.push({ id: id += 1, suit, value });
+    for (let value = 1; value <= 10; value += 1) {
+      deck.push({ id, suit, value });
+      id += 1;
     }
   }
-  for (let i = deck.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [deck[i], deck[j]] = [deck[j], deck[i]];
-  }
-  return deck;
-}
 
-function drawStacks(deck, count = 3, depth = 5) {
-  const nextDeck = [...deck];
-  const stacks = Array.from({ length: count }, () => nextDeck.splice(0, depth));
-  return { nextDeck, stacks };
-}
-
-function createInitialState() {
-  const baseDeck = buildDeck();
-  const { nextDeck, stacks } = drawStacks(baseDeck, 3, 5);
-  return {
-    deck: nextDeck,
-    discard: [],
-    marketStacks: stacks,
-    grid: Array.from({ length: 9 }, () => []),
-    round: 1,
-    marker: 'Planning',
-  };
-}
-
-function getCellValid(topCard, selectedCard) {
-  if (!selectedCard) return false;
-  if (!topCard) return true;
-  return topCard.suit === selectedCard.suit && selectedCard.value === topCard.value + 1;
+  return shuffle(deck);
 }
 
 function formatCard(card) {
   if (!card) return '';
-  return `${card.value}${card.suit}`;
+  const rank = card.value === 1 ? 'A' : String(card.value);
+  return `${rank}${card.suit}`;
 }
 
-function computeSuitProgress(grid) {
-  const bySuit = {
-    '♠': new Set(),
-    '♥': new Set(),
-    '♦': new Set(),
-    '♣': new Set(),
+function cloneStateSnapshot(snapshot) {
+  return {
+    ...snapshot,
+    deck: snapshot.deck.map((card) => ({ ...card })),
+    discard: snapshot.discard.map((card) => ({ ...card })),
+    marketStacks: snapshot.marketStacks.map((stack) => stack.map((card) => ({ ...card }))),
+    grid: snapshot.grid.map((stack) => stack.map((card) => ({ ...card }))),
   };
+}
 
-  for (const pile of grid) {
-    for (const card of pile) {
-      bySuit[card.suit].add(card.value);
+function drawOne(state, allowFinalTopUp) {
+  let deck = [...state.deck];
+  let discard = [...state.discard];
+  let passesCompleted = state.passesCompleted;
+  let finalTopUpUsed = state.finalTopUpUsed;
+
+  if (deck.length === 0) {
+    if (discard.length === 0) {
+      return { card: null, deck, discard, passesCompleted, finalTopUpUsed };
+    }
+
+    if (passesCompleted < 2) {
+      deck = shuffle(discard);
+      discard = [];
+      passesCompleted += 1;
+    } else if (passesCompleted === 2 && allowFinalTopUp && !finalTopUpUsed) {
+      deck = shuffle(discard);
+      discard = [];
+      finalTopUpUsed = true;
+    } else {
+      return { card: null, deck, discard, passesCompleted, finalTopUpUsed };
     }
   }
 
-  return SUITS.map((suit) => {
-    let streak = 0;
-    for (let value = 1; value <= 9; value += 1) {
-      if (bySuit[suit].has(value)) streak += 1;
-      else break;
+  const [card, ...rest] = deck;
+  return { card, deck: rest, discard, passesCompleted, finalTopUpUsed };
+}
+
+function dealMarket(state, allowFinalTopUp) {
+  let working = {
+    deck: [...state.deck],
+    discard: [...state.discard],
+    passesCompleted: state.passesCompleted,
+    finalTopUpUsed: state.finalTopUpUsed,
+  };
+
+  const stacks = [[], [], []];
+
+  for (const slot of DEAL_ORDER) {
+    const result = drawOne(working, allowFinalTopUp);
+    if (!result.card) {
+      return {
+        complete: false,
+        stacks,
+        deck: result.deck,
+        discard: result.discard,
+        passesCompleted: result.passesCompleted,
+        finalTopUpUsed: result.finalTopUpUsed,
+      };
     }
-    return { suit, streak, passed: streak >= 5 };
+
+    stacks[slot].push(result.card);
+    working = result;
+  }
+
+  return {
+    complete: true,
+    stacks,
+    deck: working.deck,
+    discard: working.discard,
+    passesCompleted: working.passesCompleted,
+    finalTopUpUsed: working.finalTopUpUsed,
+  };
+}
+
+function createInitialState() {
+  const seed = {
+    deck: buildDeck(),
+    discard: [],
+    marketStacks: [[], [], []],
+    grid: Array.from({ length: 9 }, () => []),
+    passesCompleted: 0,
+    finalTopUpUsed: false,
+    turn: 0,
+    gameOver: false,
+  };
+
+  const firstDeal = dealMarket(seed, false);
+
+  return {
+    ...seed,
+    ...firstDeal,
+    turn: firstDeal.complete ? 1 : 0,
+    gameOver: !firstDeal.complete,
+  };
+}
+
+function getAdjacencies(cell) {
+  const row = Math.floor(cell / 3);
+  const col = cell % 3;
+  const positions = [];
+
+  if (row > 0) positions.push(cell - 3);
+  if (row < 2) positions.push(cell + 3);
+  if (col > 0) positions.push(cell - 1);
+  if (col < 2) positions.push(cell + 1);
+
+  return positions;
+}
+
+function getSuitValuesByCell(grid, suit) {
+  return grid.map((pile) => new Set(pile.filter((card) => card.suit === suit).map((card) => card.value)));
+}
+
+function getLongestSuitPath(grid, suit) {
+  const valuesByCell = getSuitValuesByCell(grid, suit);
+  const memo = new Map();
+
+  function key(cell, value) {
+    return `${cell}:${value}`;
+  }
+
+  function dfs(cell, value) {
+    const cacheKey = key(cell, value);
+    if (memo.has(cacheKey)) return memo.get(cacheKey);
+
+    let bestLen = 1;
+    let bestPath = [{ cell, value }];
+
+    const neighbors = getAdjacencies(cell);
+    for (const nextCell of neighbors) {
+      for (const nextValue of valuesByCell[nextCell]) {
+        if (nextValue <= value) continue;
+        const candidate = dfs(nextCell, nextValue);
+        const candidateLen = 1 + candidate.length;
+        if (candidateLen > bestLen) {
+          bestLen = candidateLen;
+          bestPath = [{ cell, value }, ...candidate.path];
+        }
+      }
+    }
+
+    const result = { length: bestLen, path: bestPath };
+    memo.set(cacheKey, result);
+    return result;
+  }
+
+  let longest = { length: 0, path: [] };
+
+  for (let cell = 0; cell < valuesByCell.length; cell += 1) {
+    for (const value of valuesByCell[cell]) {
+      const candidate = dfs(cell, value);
+      if (candidate.length > longest.length) {
+        longest = candidate;
+      }
+    }
+  }
+
+  return longest;
+}
+
+function summarizeSuits(grid) {
+  return SUITS.map((suit) => {
+    const longest = getLongestSuitPath(grid, suit);
+    return {
+      suit,
+      length: longest.length,
+      passed: longest.length >= 5,
+      path: longest.path,
+    };
   });
 }
 
@@ -85,117 +219,69 @@ export default function SkywayPage() {
   const [selectedStackIndex, setSelectedStackIndex] = useState(null);
   const [history, setHistory] = useState([]);
 
-  const selectedStack = selectedStackIndex !== null ? state.marketStacks[selectedStackIndex] : null;
-  const selectedTopCard = selectedStack?.[selectedStack.length - 1] ?? null;
-
-  const validCells = useMemo(() => {
-    if (!selectedTopCard) return [];
-    return state.grid
-      .map((pile, index) => ({ pile, index }))
-      .filter(({ pile }) => getCellValid(pile[pile.length - 1], selectedTopCard))
-      .map(({ index }) => index);
-  }, [selectedTopCard, state.grid]);
-
-  const suitProgress = useMemo(() => computeSuitProgress(state.grid), [state.grid]);
-
-  const turnPrompt = selectedTopCard
-    ? `Selected ${formatCard(selectedTopCard)}. Choose a glowing cell in the play area.`
-    : 'Choose a blueprint stack from market to begin your move.';
-
   useEffect(() => {
     document.title = 'Skyway';
   }, []);
 
-  function pushHistorySnapshot(nextState) {
+  const suitSummary = useMemo(() => summarizeSuits(state.grid), [state.grid]);
+  const allSuitsPassed = suitSummary.every((item) => item.passed);
+  const totalScore = suitSummary.reduce((acc, item) => acc + item.length, 0);
+
+  const canPlace = !state.gameOver && selectedStackIndex !== null && state.marketStacks[selectedStackIndex]?.length > 0;
+
+  function pushHistorySnapshot(nextState, nextSelectedStackIndex) {
     setHistory((prev) => [...prev, {
-      state: {
-        ...nextState,
-        deck: nextState.deck.map((card) => ({ ...card })),
-        discard: nextState.discard.map((card) => ({ ...card })),
-        marketStacks: nextState.marketStacks.map((stack) => stack.map((card) => ({ ...card }))),
-        grid: nextState.grid.map((stack) => stack.map((card) => ({ ...card }))),
-      },
-      selectedStackIndex,
+      state: cloneStateSnapshot(nextState),
+      selectedStackIndex: nextSelectedStackIndex,
     }]);
   }
 
-  function resetMarket() {
-    const mergedDeck = [
-      ...state.deck,
-      ...state.discard,
-      ...state.marketStacks.flat(),
-    ];
-    const { nextDeck, stacks } = drawStacks(mergedDeck.sort(() => Math.random() - 0.5), 3, 5);
-    const nextState = {
-      ...state,
-      deck: nextDeck,
-      discard: [],
-      marketStacks: stacks,
-      marker: 'Market Reset',
-    };
-    pushHistorySnapshot(state);
-    setState(nextState);
-    setSelectedStackIndex(null);
-  }
+  function placeBlueprint(cellIndex) {
+    if (!canPlace) return;
 
-  function chooseNextStack() {
-    const nonEmpty = state.marketStacks
-      .map((stack, index) => ({ stack, index }))
-      .filter(({ stack }) => stack.length > 0)
-      .map(({ index }) => index);
-    if (nonEmpty.length === 0) return;
-    if (selectedStackIndex === null) {
-      setSelectedStackIndex(nonEmpty[0]);
-      return;
-    }
-    const currentIndex = nonEmpty.indexOf(selectedStackIndex);
-    const nextIndex = nonEmpty[(currentIndex + 1) % nonEmpty.length];
-    setSelectedStackIndex(nextIndex);
-  }
+    const chosen = state.marketStacks[selectedStackIndex];
+    if (!chosen || chosen.length === 0) return;
 
-  function placeCardInCell(cellIndex) {
-    if (!selectedTopCard) return;
-    if (!validCells.includes(cellIndex)) return;
+    pushHistorySnapshot(state, selectedStackIndex);
 
-    pushHistorySnapshot(state);
+    const undrafted = state.marketStacks
+      .filter((_, index) => index !== selectedStackIndex)
+      .flat();
 
-    const nextMarket = state.marketStacks.map((stack, idx) => (
-      idx === selectedStackIndex ? stack.slice(0, -1) : [...stack]
-    ));
-    const nextGrid = state.grid.map((pile, idx) => (
-      idx === cellIndex ? [...pile, selectedTopCard] : [...pile]
-    ));
-
-    let nextDeck = [...state.deck];
-    const nextDiscard = [...state.discard, selectedTopCard];
-
-    if (nextMarket[selectedStackIndex].length === 0 && nextDeck.length > 0) {
-      nextMarket[selectedStackIndex] = nextDeck.splice(0, 3);
-    }
-
-    setState({
-      ...state,
-      marketStacks: nextMarket,
-      grid: nextGrid,
-      deck: nextDeck,
-      discard: nextDiscard,
-      marker: 'Placement',
-      round: state.round + 1,
+    const nextGrid = state.grid.map((pile, index) => {
+      if (index !== cellIndex) return [...pile];
+      const expanded = [...pile, ...chosen];
+      if (expanded.length <= 3) return expanded;
+      return expanded.slice(expanded.length - 3);
     });
 
-    if (nextMarket[selectedStackIndex].length === 0) {
-      setSelectedStackIndex(null);
-    }
-  }
+    const overflowDiscard = state.grid[cellIndex].length + chosen.length > 3
+      ? [...state.grid[cellIndex], ...chosen].slice(0, state.grid[cellIndex].length + chosen.length - 3)
+      : [];
 
-  function autoPlaceInFirstValidCell() {
-    if (validCells.length === 0) return;
-    placeCardInCell(validCells[0]);
+    const afterPlacement = {
+      ...state,
+      grid: nextGrid,
+      discard: [...state.discard, ...undrafted, ...overflowDiscard],
+      marketStacks: [[], [], []],
+      turn: state.turn + 1,
+    };
+
+    const nextMarket = dealMarket(afterPlacement, true);
+
+    setState({
+      ...afterPlacement,
+      ...nextMarket,
+      gameOver: !nextMarket.complete,
+    });
+
+    setSelectedStackIndex(null);
   }
 
   function undoMove() {
     const snapshot = history[history.length - 1];
     if (!snapshot) return;
+
     setState(snapshot.state);
     setSelectedStackIndex(snapshot.selectedStackIndex ?? null);
     setHistory((prev) => prev.slice(0, -1));
@@ -221,131 +307,121 @@ export default function SkywayPage() {
 
       <div className="w-full max-w-6xl">
         <h1 className="text-3xl font-bold text-center">Skyway</h1>
-        <p className="mt-2 text-center text-sm text-slate-600">Market drafting + grid stacking prototype with blueprint routing.</p>
+        <p className="mt-2 text-center text-sm text-slate-600">Draft one blueprint stack each turn, cap each grid cell at three cards, and score longest increasing paths by suit.</p>
       </div>
 
-      <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-3 text-2xl font-semibold">What is Skyway?</h2>
-        <p className="mb-3 text-slate-700">
-          Skyway is a solo sequencing prototype where you draft a visible market stack and place its top blueprint card into a 3×3 build grid.
-          Each placement grows suit-specific runs while preserving strict ascending order.
-        </p>
-        <p className="text-slate-700">
-          Your goal is to assemble clean per-suit routes from value 1 upward. The endgame panel tracks each suit&apos;s current streak and marks PASS
-          once a suit reaches five connected values.
-        </p>
-      </section>
+      <div className="w-full max-w-6xl grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_300px]">
+        <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Status</h2>
+          <div className="space-y-2 text-sm">
+            <p><span className="font-semibold text-slate-700">Turn:</span> {state.turn}</p>
+            <p><span className="font-semibold text-slate-700">Deck:</span> {state.deck.length}</p>
+            <p><span className="font-semibold text-slate-700">Discard:</span> {state.discard.length}</p>
+            <p><span className="font-semibold text-slate-700">Round:</span> {Math.min(state.passesCompleted + 1, 3)} / 3</p>
+            <p><span className="font-semibold text-slate-700">Final top-up used:</span> {state.finalTopUpUsed ? 'Yes' : 'No'}</p>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            {state.gameOver
+              ? 'Game over: no cards remain to fully reset the market.'
+              : canPlace
+                ? `Blueprint ${selectedStackIndex + 1} selected. Click a play-area cell to place the stack.`
+                : 'Select one blueprint stack, then choose a grid cell for placement.'}
+          </div>
+          <div className="grid gap-2">
+            <button type="button" onClick={undoMove} disabled={history.length === 0} className="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-40">Undo</button>
+            <button type="button" onClick={startNewGame} className="rounded bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-600">New game</button>
+          </div>
+        </section>
 
-      <section className="w-full max-w-6xl rounded-xl border border-blue-200 bg-[#eef6ff] p-5 shadow-sm">
-        <h2 className="mb-3 text-2xl font-semibold">How to play</h2>
-        <ul className="list-disc space-y-2 pl-5 text-slate-700">
-          <li>Select one of the three market blueprint stacks. The selected stack is highlighted.</li>
-          <li>The top card of that stack is your active card for this turn.</li>
-          <li>Drop the active card into any glowing valid cell in the 3×3 play area.</li>
-          <li>A cell is valid when it is empty, or when its top card has the same suit and exactly one lower value.</li>
-          <li>Use <strong>Choose stack</strong> to cycle through non-empty stacks and <strong>Place in cell</strong> to auto-place in the first valid cell.</li>
-          <li>Use <strong>Reset market</strong> to reshuffle market/deck/discard into fresh blueprint stacks.</li>
-          <li><strong>Undo</strong> reverts the latest action snapshot, and <strong>New game</strong> starts from a brand-new shuffled setup.</li>
-        </ul>
-      </section>
-
-      <div className="w-full max-w-6xl grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_280px]">
-          <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Status Controls</h2>
-            <div className="space-y-2 text-sm">
-              <p><span className="font-semibold text-slate-700">Round marker:</span> {state.marker}</p>
-              <p><span className="font-semibold text-slate-700">Deck count:</span> {state.deck.length}</p>
-              <p><span className="font-semibold text-slate-700">Discard count:</span> {state.discard.length}</p>
-              <p><span className="font-semibold text-slate-700">Round #:</span> {state.round}</p>
+        <section className="space-y-5">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Market (2-2-1)</h2>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {state.marketStacks.map((stack, stackIndex) => {
+                const isSelected = selectedStackIndex === stackIndex;
+                const isEmpty = stack.length === 0;
+                return (
+                  <button
+                    type="button"
+                    key={`stack-${stackIndex}`}
+                    onClick={() => !state.gameOver && !isEmpty && setSelectedStackIndex(stackIndex)}
+                    disabled={state.gameOver || isEmpty}
+                    className={`min-h-36 rounded-md border p-2 text-left transition disabled:opacity-50 ${isSelected ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-200 bg-slate-50 hover:border-slate-300'}`}
+                  >
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Blueprint {stackIndex + 1}</p>
+                    <div className="relative h-20">
+                      {stack.map((card, cardIndex) => (
+                        <div
+                          key={card.id}
+                          className={`absolute left-0 top-0 flex h-16 w-12 items-center justify-center rounded-lg border border-slate-300 bg-white text-sm font-bold shadow-sm ${SUIT_COLORS[card.suit]}`}
+                          style={{ transform: `translate(${cardIndex * 11}px, ${cardIndex * 2}px)` }}
+                        >
+                          {formatCard(card)}
+                        </div>
+                      ))}
+                      {isEmpty && <span className="text-xs text-slate-400">Empty</span>}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">{turnPrompt}</div>
-            <div className="grid gap-2">
-              <button type="button" onClick={resetMarket} className="rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500">Reset market</button>
-              <button type="button" onClick={chooseNextStack} className="rounded bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-600">Choose stack</button>
-              <button type="button" onClick={autoPlaceInFirstValidCell} disabled={validCells.length === 0} className="rounded bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-600 disabled:opacity-40">Place in cell</button>
-              <button type="button" onClick={undoMove} disabled={history.length === 0} className="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-40">Undo</button>
-              <button type="button" onClick={startNewGame} className="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">New game</button>
-            </div>
-          </section>
+          </div>
 
-          <section className="space-y-5">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Market Panel</h2>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {state.marketStacks.map((stack, stackIndex) => {
-                  const isSelected = selectedStackIndex === stackIndex;
-                  return (
-                    <button
-                      type="button"
-                      key={`stack-${stackIndex}`}
-                      onClick={() => setSelectedStackIndex(stackIndex)}
-                      className={`min-h-36 rounded-md border p-2 text-left transition ${isSelected ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-200 bg-slate-50 hover:border-slate-300'}`}
-                    >
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Blueprint {stackIndex + 1}</p>
-                      <div className="relative h-20">
-                        {stack.map((card, cardIndex) => (
-                          <div
-                            key={card.id}
-                            className={`absolute left-0 top-0 flex h-16 w-12 items-center justify-center rounded-lg border border-slate-300 bg-white text-sm font-bold shadow-sm ${SUIT_COLORS[card.suit]}`}
-                            style={{ transform: `translate(${cardIndex * 11}px, ${cardIndex * 2}px)` }}
-                          >
-                            {formatCard(card)}
-                          </div>
-                        ))}
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Play Area (3x3)</h2>
+            <div className="grid grid-cols-3 gap-3">
+              {state.grid.map((pile, cellIndex) => (
+                <button
+                  type="button"
+                  key={`cell-${cellIndex}`}
+                  onClick={() => placeBlueprint(cellIndex)}
+                  disabled={!canPlace}
+                  className={`relative min-h-28 rounded-md border p-2 text-left transition ${canPlace ? 'border-emerald-300 bg-emerald-50 hover:border-emerald-500' : 'border-slate-200 bg-slate-50'}`}
+                >
+                  <p className="text-xs font-semibold text-slate-500">Cell {cellIndex + 1}</p>
+                  <div className="relative mt-2 h-16">
+                    {pile.map((card, idx) => (
+                      <div
+                        key={`${card.id}-${idx}`}
+                        className={`absolute left-0 top-0 flex h-14 w-10 items-center justify-center rounded-md border border-slate-300 bg-white text-xs font-bold shadow-sm ${SUIT_COLORS[card.suit]}`}
+                        style={{ transform: `translateX(${idx * 14}px)` }}
+                      >
+                        {formatCard(card)}
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Play Area Panel</h2>
-              <div className="grid grid-cols-3 gap-3">
-                {state.grid.map((pile, cellIndex) => {
-                  const topCard = pile[pile.length - 1];
-                  const isValidDrop = validCells.includes(cellIndex);
-                  return (
-                    <button
-                      type="button"
-                      key={`cell-${cellIndex}`}
-                      onClick={() => placeCardInCell(cellIndex)}
-                      className={`relative min-h-28 rounded-md border p-2 text-left transition ${isValidDrop ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}
-                    >
-                      <p className="text-xs font-semibold text-slate-500">Cell {cellIndex + 1}</p>
-                      <div className="relative mt-2 h-16">
-                        {pile.slice(-3).map((card, idx) => (
-                          <div
-                            key={`${card.id}-${idx}`}
-                            className={`absolute left-0 top-0 flex h-14 w-10 items-center justify-center rounded-md border border-slate-300 bg-white text-xs font-bold shadow-sm ${SUIT_COLORS[card.suit]}`}
-                            style={{ transform: `translateX(${idx * 14}px)` }}
-                          >
-                            {formatCard(card)}
-                          </div>
-                        ))}
-                        {!topCard && <span className="text-xs text-slate-400">Drop zone</span>}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Endgame Panel</h2>
-            <p className="mb-4 text-sm text-slate-600">Build each suit from 1 upward. Streak 5+ passes the skyway check.</p>
-            <div className="space-y-2">
-              {suitProgress.map((item) => (
-                <div key={item.suit} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                  <span className={`font-semibold ${SUIT_COLORS[item.suit]}`}>{item.suit} sequence</span>
-                  <span className="text-slate-600">len {item.streak}</span>
-                  <span className={item.passed ? 'font-semibold text-emerald-600' : 'font-semibold text-rose-600'}>{item.passed ? 'PASS' : 'FAIL'}</span>
-                </div>
+                    ))}
+                    {pile.length === 0 && <span className="text-xs text-slate-400">Drop zone</span>}
+                  </div>
+                </button>
               ))}
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Endgame</h2>
+          <p className="mb-3 text-sm text-slate-600">Find the longest increasing route per suit using orthogonal movement between grid cells.</p>
+          <div className="space-y-2">
+            {suitSummary.map((item) => (
+              <div key={item.suit} className="rounded-md border border-slate-200 bg-slate-50 p-2 text-sm">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className={`font-semibold ${SUIT_COLORS[item.suit]}`}>{item.suit}</span>
+                  <span className="text-slate-600">len {item.length}</span>
+                  <span className={item.passed ? 'font-semibold text-emerald-600' : 'font-semibold text-rose-600'}>{item.passed ? 'PASS' : 'FAIL'}</span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  {item.path.length > 0
+                    ? item.path.map((step) => `${step.value === 1 ? 'A' : step.value}${item.suit}@${step.cell + 1}`).join(' → ')
+                    : 'No sequence yet.'}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
+            <p><span className="font-semibold">Total score:</span> {totalScore}</p>
+            <p><span className="font-semibold">Result:</span> {allSuitsPassed ? 'Win (all suits reached 5+)' : 'Not yet winning'}</p>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
