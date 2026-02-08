@@ -33,21 +33,21 @@ async function loadFibFunctions(wasmUrl) {
 function runTimedRace({ durationMs, batchSize, uiUpdateMs, fibTimedReset, fibTimedStepMany }) {
   fibTimedReset();
   const start = performance.now();
-  let position = 0n;
+  let stepsCompleted = 0n;
   let nextUiUpdateAt = start + uiUpdateMs;
 
   while (performance.now() - start < durationMs) {
     fibTimedStepMany(batchSize);
-    position += BigInt(batchSize);
+    stepsCompleted += BigInt(batchSize);
 
     const now = performance.now();
     if (now >= nextUiUpdateAt) {
-      self.postMessage({ type: 'timedProgress', position, elapsedMs: now - start });
+      self.postMessage({ type: 'timedProgress', stepsCompleted, elapsedMs: now - start });
       nextUiUpdateAt = now + uiUpdateMs;
     }
   }
 
-  self.postMessage({ type: 'timedDone', elapsedMs: performance.now() - start, position });
+  self.postMessage({ type: 'timedDone', elapsedMs: performance.now() - start, stepsCompleted });
 }
 
 self.onmessage = async (event) => {

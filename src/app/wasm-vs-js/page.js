@@ -26,12 +26,12 @@ function formatElapsed(elapsedMs) {
 }
 
 
-function formatPosition(position) {
-  if (position === null) {
+function formatSteps(stepsCompleted) {
+  if (stepsCompleted === null) {
     return null;
   }
 
-  return position.toLocaleString();
+  return stepsCompleted.toLocaleString();
 }
 
 function buildPercentDiffMessage(firstValue, secondValue, firstLabel, secondLabel, metricName, lowerWins = true) {
@@ -103,9 +103,10 @@ export default function WasmVsJsPage() {
 
   const [timedRaceStatus, setTimedRaceStatus] = useState('idle');
   const [timedErrorMessage, setTimedErrorMessage] = useState('');
-  const [jsTimedPosition, setJsTimedPosition] = useState(null);
-  const [wasmTimedPosition, setWasmTimedPosition] = useState(null);
+  const [jsTimedStepsCompleted, setJsTimedStepsCompleted] = useState(null);
+  const [wasmTimedStepsCompleted, setWasmTimedStepsCompleted] = useState(null);
   const [timedBatchSize, setTimedBatchSize] = useState(10_000);
+  const [timedJsMode, setTimedJsMode] = useState('optimized');
   const [timedUiUpdateMs, setTimedUiUpdateMs] = useState(100);
   const [jsTimedElapsedMs, setJsTimedElapsedMs] = useState(null);
   const [wasmTimedElapsedMs, setWasmTimedElapsedMs] = useState(null);
@@ -147,26 +148,26 @@ export default function WasmVsJsPage() {
   }, [isDone, jsElapsedMs, wasmElapsedMs]);
 
   const timedWinnerMessage = useMemo(() => {
-    if (!isTimedDone || jsTimedPosition === null || wasmTimedPosition === null) {
+    if (!isTimedDone || jsTimedStepsCompleted === null || wasmTimedStepsCompleted === null) {
       return '';
     }
 
-    if (jsTimedPosition === wasmTimedPosition) {
-      return 'Timed race tie! Both implementations reached the same Fibonacci position.';
+    if (jsTimedStepsCompleted === wasmTimedStepsCompleted) {
+      return 'Timed race tie! Both implementations completed the same number of steps.';
     }
 
-    return jsTimedPosition > wasmTimedPosition
-      ? 'JavaScript reached a farther Fibonacci position in 30 seconds.'
-      : 'WASM reached a farther Fibonacci position in 30 seconds.';
-  }, [isTimedDone, jsTimedPosition, wasmTimedPosition]);
+    return jsTimedStepsCompleted > wasmTimedStepsCompleted
+      ? 'JavaScript completed more timed-loop steps in 30 seconds.'
+      : 'WASM completed more timed-loop steps in 30 seconds.';
+  }, [isTimedDone, jsTimedStepsCompleted, wasmTimedStepsCompleted]);
 
   const timedPercentDiffMessage = useMemo(() => {
-    if (!isTimedDone || jsTimedPosition === null || wasmTimedPosition === null) {
+    if (!isTimedDone || jsTimedStepsCompleted === null || wasmTimedStepsCompleted === null) {
       return '';
     }
 
-    return buildPercentDiffMessage(jsTimedPosition, wasmTimedPosition, 'JavaScript', 'WASM', 'position', false);
-  }, [isTimedDone, jsTimedPosition, wasmTimedPosition]);
+    return buildPercentDiffMessage(jsTimedStepsCompleted, wasmTimedStepsCompleted, 'JavaScript', 'WASM', 'steps completed', false);
+  }, [isTimedDone, jsTimedStepsCompleted, wasmTimedStepsCompleted]);
 
   const timedRaceProgressPercent = useMemo(() => {
     const elapsedMs = TIMED_RACE_DURATION_MS - timedRaceRemainingMs;
@@ -206,8 +207,8 @@ export default function WasmVsJsPage() {
   };
 
   const resetTimedRace = () => {
-    setJsTimedPosition(null);
-    setWasmTimedPosition(null);
+    setJsTimedStepsCompleted(null);
+    setWasmTimedStepsCompleted(null);
     setJsTimedElapsedMs(null);
     setWasmTimedElapsedMs(null);
     setTimedErrorMessage('');
@@ -328,12 +329,12 @@ export default function WasmVsJsPage() {
       const data = event.data || {};
 
       if (data.type === 'timedProgress') {
-        setJsTimedPosition(data.position);
+        setJsTimedStepsCompleted(data.stepsCompleted);
         setJsTimedElapsedMs(data.elapsedMs);
       }
 
       if (data.type === 'timedDone') {
-        setJsTimedPosition(data.position);
+        setJsTimedStepsCompleted(data.stepsCompleted);
         setJsTimedElapsedMs(data.elapsedMs);
         setJsTimedDone(true);
       }
@@ -343,12 +344,12 @@ export default function WasmVsJsPage() {
       const data = event.data || {};
 
       if (data.type === 'timedProgress') {
-        setWasmTimedPosition(data.position);
+        setWasmTimedStepsCompleted(data.stepsCompleted);
         setWasmTimedElapsedMs(data.elapsedMs);
       }
 
       if (data.type === 'timedDone') {
-        setWasmTimedPosition(data.position);
+        setWasmTimedStepsCompleted(data.stepsCompleted);
         setWasmTimedElapsedMs(data.elapsedMs);
         setWasmTimedDone(true);
       }
@@ -365,6 +366,7 @@ export default function WasmVsJsPage() {
       durationMs: TIMED_RACE_DURATION_MS,
       batchSize: timedBatchSize,
       uiUpdateMs: timedUiUpdateMs,
+      jsTimedMode: timedJsMode,
     });
     wasmWorker.postMessage({
       type: 'startTimed',
@@ -501,7 +503,7 @@ export default function WasmVsJsPage() {
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-4">Part 2: 30-Second Endurance Race</h2>
         <p className="text-slate-700 mb-4">
-          Runs 30 seconds of throughput-oriented Fibonacci progression in both JS and WASM. Each engine reports the Fibonacci index position reached, and updates batch many iterations before crossing thread/runtime boundaries.
+          Runs 30 seconds of throughput-oriented Fibonacci progression in both JS and WASM. Each engine reports steps completed (loop iterations), and updates batch many iterations before crossing thread/runtime boundaries.
         </p>
 
         <div className="flex flex-wrap gap-3 mb-4">
@@ -551,6 +553,21 @@ export default function WasmVsJsPage() {
             <span className="text-sm text-slate-600">Small batches emphasize JS↔WASM call overhead; larger batches emphasize raw compute throughput.</span>
           </label>
 
+
+          <label className="flex flex-col gap-2">
+            <span className="font-semibold">JavaScript mode</span>
+            <select
+              value={timedJsMode}
+              onChange={(event) => setTimedJsMode(event.target.value)}
+              className="rounded border border-slate-300 px-3 py-2 bg-white"
+              disabled={isTimedRunning || isRunning}
+            >
+              <option value="naive">Naive (per-iteration &gt;&gt;&gt; 0 coercion)</option>
+              <option value="optimized">Optimized (Uint32Array state)</option>
+            </select>
+            <span className="text-sm text-slate-600">Compare JS baseline vs JIT-friendly typed-array loop under the same batch and UI settings.</span>
+          </label>
+
           <label className="flex flex-col gap-2">
             <span className="font-semibold">UI update frequency</span>
             <select
@@ -590,12 +607,12 @@ export default function WasmVsJsPage() {
         <div className="grid md:grid-cols-2 gap-4">
           <div className="rounded-lg border border-slate-200 p-4">
             <h3 className="text-lg font-semibold mb-1">JavaScript</h3>
-            <p className="text-slate-700">Position reached: {formatPosition(jsTimedPosition) ?? (isTimedRunning ? 'Running...' : '-')}</p>
+            <p className="text-slate-700">Steps completed: {formatSteps(jsTimedStepsCompleted) ?? (isTimedRunning ? 'Running...' : '-')}</p>
             <p className="text-slate-600 text-sm">Elapsed: {formatElapsed(jsTimedElapsedMs) ?? '-'}</p>
           </div>
           <div className="rounded-lg border border-slate-200 p-4">
             <h3 className="text-lg font-semibold mb-1">WASM (Rust)</h3>
-            <p className="text-slate-700">Position reached: {formatPosition(wasmTimedPosition) ?? (isTimedRunning ? 'Running...' : '-')}</p>
+            <p className="text-slate-700">Steps completed: {formatSteps(wasmTimedStepsCompleted) ?? (isTimedRunning ? 'Running...' : '-')}</p>
             <p className="text-slate-600 text-sm">Elapsed: {formatElapsed(wasmTimedElapsedMs) ?? '-'}</p>
           </div>
         </div>

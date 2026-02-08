@@ -6,34 +6,46 @@ function fib(n) {
   return fib(n - 1) + fib(n - 2);
 }
 
-function runTimedRace({ durationMs, batchSize, uiUpdateMs }) {
+function runTimedRace({ durationMs, batchSize, uiUpdateMs, jsTimedMode }) {
   const start = performance.now();
-  let position = 0n;
+  let stepsCompleted = 0n;
   let prev = 0;
   let curr = 1;
+  const typedState = new Uint32Array(2);
+  typedState[0] = 0;
+  typedState[1] = 1;
   let nextUiUpdateAt = start + uiUpdateMs;
+  const useOptimizedMode = jsTimedMode === 'optimized';
 
   while (performance.now() - start < durationMs) {
-    for (let index = 0; index < batchSize; index += 1) {
-      const next = (prev + curr) >>> 0;
-      prev = curr;
-      curr = next;
+    if (useOptimizedMode) {
+      for (let index = 0; index < batchSize; index += 1) {
+        const next = typedState[0] + typedState[1];
+        typedState[0] = typedState[1];
+        typedState[1] = next;
+      }
+    } else {
+      for (let index = 0; index < batchSize; index += 1) {
+        const next = (prev + curr) >>> 0;
+        prev = curr;
+        curr = next;
+      }
     }
 
-    position += BigInt(batchSize);
+    stepsCompleted += BigInt(batchSize);
 
     const now = performance.now();
     if (now >= nextUiUpdateAt) {
-      self.postMessage({ type: 'timedProgress', position, elapsedMs: now - start });
+      self.postMessage({ type: 'timedProgress', stepsCompleted, elapsedMs: now - start });
       nextUiUpdateAt = now + uiUpdateMs;
     }
   }
 
-  self.postMessage({ type: 'timedDone', elapsedMs: performance.now() - start, position });
+  self.postMessage({ type: 'timedDone', elapsedMs: performance.now() - start, stepsCompleted });
 }
 
 self.onmessage = (event) => {
-  const { type, iterations, durationMs, batchSize = 1, uiUpdateMs = 100 } = event.data || {};
+  const { type, iterations, durationMs, batchSize = 1, uiUpdateMs = 100, jsTimedMode = 'naive' } = event.data || {};
 
   if (type === 'cancel') {
     self.close();
@@ -45,7 +57,7 @@ self.onmessage = (event) => {
   }
 
   if (type === 'startTimed') {
-    runTimedRace({ durationMs, batchSize, uiUpdateMs });
+    runTimedRace({ durationMs, batchSize, uiUpdateMs, jsTimedMode });
     return;
   }
 
