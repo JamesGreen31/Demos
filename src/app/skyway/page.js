@@ -50,7 +50,8 @@ function cloneStateSnapshot(snapshot) {
   };
 }
 
-function drawOne(state, allowFinalTopUp) {
+function drawOne(state, options) {
+  const { allowFinalTopUp, cardsDealtThisMarket } = options;
   let deck = [...state.deck];
   let discard = [...state.discard];
   let passesCompleted = state.passesCompleted;
@@ -65,7 +66,12 @@ function drawOne(state, allowFinalTopUp) {
       deck = shuffle(discard);
       discard = [];
       passesCompleted += 1;
-    } else if (passesCompleted === 2 && allowFinalTopUp && !finalTopUpUsed) {
+    } else if (
+      passesCompleted === 2
+      && allowFinalTopUp
+      && !finalTopUpUsed
+      && cardsDealtThisMarket > 0
+    ) {
       deck = shuffle(discard);
       discard = [];
       finalTopUpUsed = true;
@@ -88,12 +94,16 @@ function dealMarket(state, allowFinalTopUp) {
 
   const stacks = [[], [], []];
 
-  for (const slot of DEAL_ORDER) {
-    const result = drawOne(working, allowFinalTopUp);
+  for (let drawIndex = 0; drawIndex < DEAL_ORDER.length; drawIndex += 1) {
+    const slot = DEAL_ORDER[drawIndex];
+    const result = drawOne(working, {
+      allowFinalTopUp,
+      cardsDealtThisMarket: drawIndex,
+    });
     if (!result.card) {
       return {
         complete: false,
-        stacks,
+        marketStacks: stacks,
         deck: result.deck,
         discard: result.discard,
         passesCompleted: result.passesCompleted,
@@ -107,7 +117,7 @@ function dealMarket(state, allowFinalTopUp) {
 
   return {
     complete: true,
-    stacks,
+    marketStacks: stacks,
     deck: working.deck,
     discard: working.discard,
     passesCompleted: working.passesCompleted,
