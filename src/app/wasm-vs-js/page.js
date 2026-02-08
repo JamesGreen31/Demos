@@ -87,6 +87,8 @@ export default function WasmVsJsPage() {
   const [wasmTimedPoints, setWasmTimedPoints] = useState(null);
   const [jsTimedElapsedMs, setJsTimedElapsedMs] = useState(null);
   const [wasmTimedElapsedMs, setWasmTimedElapsedMs] = useState(null);
+  const [timedRaceStartedAt, setTimedRaceStartedAt] = useState(null);
+  const [timedRaceRemainingMs, setTimedRaceRemainingMs] = useState(TIMED_RACE_DURATION_MS);
 
   const jsWorkerRef = useRef(null);
   const wasmWorkerRef = useRef(null);
@@ -142,6 +144,11 @@ export default function WasmVsJsPage() {
     return buildPercentDiffMessage(jsTimedPoints, wasmTimedPoints, 'JavaScript', 'WASM', 'point throughput', false);
   }, [isTimedDone, jsTimedPoints, wasmTimedPoints]);
 
+  const timedRaceProgressPercent = useMemo(() => {
+    const elapsedMs = TIMED_RACE_DURATION_MS - timedRaceRemainingMs;
+    return Math.min(100, Math.max(0, (elapsedMs / TIMED_RACE_DURATION_MS) * 100));
+  }, [timedRaceRemainingMs]);
+
   const stopWorkers = () => {
     if (jsWorkerRef.current) {
       jsWorkerRef.current.terminate();
@@ -180,6 +187,8 @@ export default function WasmVsJsPage() {
     setJsTimedElapsedMs(null);
     setWasmTimedElapsedMs(null);
     setTimedErrorMessage('');
+    setTimedRaceStartedAt(null);
+    setTimedRaceRemainingMs(TIMED_RACE_DURATION_MS);
   };
 
   useEffect(() => {
@@ -200,6 +209,24 @@ export default function WasmVsJsPage() {
       setTimedRaceStatus('done');
     }
   }, [jsTimedPoints, wasmTimedPoints]);
+
+  useEffect(() => {
+    if (!isTimedRunning || timedRaceStartedAt === null) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      const elapsedMs = Date.now() - timedRaceStartedAt;
+      const nextRemainingMs = Math.max(0, TIMED_RACE_DURATION_MS - elapsedMs);
+      setTimedRaceRemainingMs(nextRemainingMs);
+
+      if (nextRemainingMs === 0) {
+        window.clearInterval(intervalId);
+      }
+    }, 100);
+
+    return () => window.clearInterval(intervalId);
+  }, [isTimedRunning, timedRaceStartedAt]);
 
   const beginRace = () => {
     stopWorkers();
@@ -261,6 +288,9 @@ export default function WasmVsJsPage() {
     stopTimedWorkers();
     resetTimedRace();
     setTimedRaceStatus('running');
+    const startedAt = Date.now();
+    setTimedRaceStartedAt(startedAt);
+    setTimedRaceRemainingMs(TIMED_RACE_DURATION_MS);
 
     const jsWorker = new Worker(new URL('./jsWorker.js', import.meta.url));
     const wasmWorker = new Worker(new URL('./wasmWorker.js', import.meta.url));
@@ -298,6 +328,7 @@ export default function WasmVsJsPage() {
   const cancelTimedRace = () => {
     stopTimedWorkers();
     setTimedRaceStatus('idle');
+    setTimedRaceStartedAt(null);
   };
 
   const clearTimedRace = () => {
@@ -448,6 +479,24 @@ export default function WasmVsJsPage() {
         </div>
 
         {timedErrorMessage ? <p className="mb-3 text-red-600">{timedErrorMessage}</p> : null}
+
+        <div className="mb-4 rounded-lg border border-slate-200 bg-slate-100 p-3">
+          <div className="mb-2 flex items-center justify-between text-sm text-slate-700">
+            <span className="font-semibold">Race timer</span>
+            <span>{(timedRaceRemainingMs / 1000).toFixed(1)}s left</span>
+          </div>
+          <div className="h-3 overflow-hidden rounded-full bg-slate-200">
+            <div
+              className="h-full rounded-full bg-slate-500 transition-[width] duration-150 ease-linear"
+              style={{ width: `${timedRaceProgressPercent}%` }}
+              role="progressbar"
+              aria-label="30-second race timer"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Number.parseFloat(timedRaceProgressPercent.toFixed(1))}
+            />
+          </div>
+        </div>
 
         <div className="grid md:grid-cols-2 gap-4">
           <div className="rounded-lg border border-slate-200 p-4">
