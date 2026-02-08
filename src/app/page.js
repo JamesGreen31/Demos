@@ -46,6 +46,12 @@ export default function Home() {
       description: 'Explore coin-change optimization with DP',
       previewImage: '/dynamic-programming-preview.svg',
     },
+    {
+      route: 'skyway',
+      title: 'Skyway',
+      description: 'Trace increasing suit paths for endgame scoring',
+      previewImage: '/skyway-preview.svg',
+    },
   ];
 
   const ckplaceGames = [
