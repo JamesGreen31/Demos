@@ -55,17 +55,6 @@ function formatCard(card) {
   return `${rank}${card.suit}`;
 }
 
-function cloneStateSnapshot(snapshot) {
-  return {
-    ...snapshot,
-    deck: snapshot.deck.map((card) => ({ ...card })),
-    discard: snapshot.discard.map((card) => ({ ...card })),
-    marketStacks: snapshot.marketStacks.map((stack) => stack.map((card) => ({ ...card }))),
-    grid: snapshot.grid.map((stack) => stack.map((card) => ({ ...card }))),
-    roundMarkers: snapshot.roundMarkers.map((marker) => ({ ...marker })),
-  };
-}
-
 function drawOne(state, options) {
   const { allowFinalTopUp, cardsDealtThisMarket } = options;
   let deck = [...state.deck];
@@ -109,6 +98,7 @@ function dealMarket(state, allowFinalTopUp) {
   };
 
   const stacks = [[], [], []];
+  let usedFinalTopUpThisMarket = false;
 
   for (let drawIndex = 0; drawIndex < DEAL_ORDER.length; drawIndex += 1) {
     const slot = DEAL_ORDER[drawIndex];
@@ -116,6 +106,9 @@ function dealMarket(state, allowFinalTopUp) {
       allowFinalTopUp,
       cardsDealtThisMarket: drawIndex,
     });
+    if (!working.finalTopUpUsed && result.finalTopUpUsed) {
+      usedFinalTopUpThisMarket = true;
+    }
     if (!result.card) {
       return {
         complete: false,
@@ -124,6 +117,7 @@ function dealMarket(state, allowFinalTopUp) {
         discard: result.discard,
         passesCompleted: result.passesCompleted,
         finalTopUpUsed: result.finalTopUpUsed,
+        isLastMarket: false,
       };
     }
 
@@ -138,6 +132,7 @@ function dealMarket(state, allowFinalTopUp) {
     discard: working.discard,
     passesCompleted: working.passesCompleted,
     finalTopUpUsed: working.finalTopUpUsed,
+    isLastMarket: usedFinalTopUpThisMarket,
   };
 }
 
@@ -153,6 +148,7 @@ function createInitialState() {
     finalTopUpUsed: false,
     turn: 0,
     gameOver: false,
+    isLastMarket: false,
   };
 
   const firstDeal = dealMarket(seed, false);
@@ -245,7 +241,6 @@ export default function SkywayPage() {
   const demosHref = process.env.NODE_ENV === 'production' ? '/Demos' : '/';
   const [state, setState] = useState(() => createInitialState());
   const [selectedStackIndex, setSelectedStackIndex] = useState(null);
-  const [history, setHistory] = useState([]);
 
   useEffect(() => {
     document.title = 'Skyway';
@@ -257,20 +252,11 @@ export default function SkywayPage() {
 
   const canPlace = !state.gameOver && selectedStackIndex !== null && state.marketStacks[selectedStackIndex]?.length > 0;
 
-  function pushHistorySnapshot(nextState, nextSelectedStackIndex) {
-    setHistory((prev) => [...prev, {
-      state: cloneStateSnapshot(nextState),
-      selectedStackIndex: nextSelectedStackIndex,
-    }]);
-  }
-
   function placeBlueprint(cellIndex) {
     if (!canPlace) return;
 
     const chosen = state.marketStacks[selectedStackIndex];
     if (!chosen || chosen.length === 0) return;
-
-    pushHistorySnapshot(state, selectedStackIndex);
 
     const undrafted = state.marketStacks
       .filter((_, index) => index !== selectedStackIndex)
@@ -295,6 +281,16 @@ export default function SkywayPage() {
       turn: state.turn + 1,
     };
 
+    if (state.isLastMarket) {
+      setState({
+        ...afterPlacement,
+        gameOver: true,
+        isLastMarket: false,
+      });
+      setSelectedStackIndex(null);
+      return;
+    }
+
     const nextMarket = dealMarket(afterPlacement, true);
 
     setState({
@@ -306,19 +302,12 @@ export default function SkywayPage() {
     setSelectedStackIndex(null);
   }
 
-  function undoMove() {
-    const snapshot = history[history.length - 1];
-    if (!snapshot) return;
-
-    setState(snapshot.state);
-    setSelectedStackIndex(snapshot.selectedStackIndex ?? null);
-    setHistory((prev) => prev.slice(0, -1));
-  }
-
   function startNewGame() {
+    const confirmed = window.confirm('Are you sure you want to start a new game?');
+    if (!confirmed) return;
+
     setState(createInitialState());
     setSelectedStackIndex(null);
-    setHistory([]);
   }
 
   return (
@@ -337,6 +326,29 @@ export default function SkywayPage() {
         <h1 className="text-3xl font-bold text-center">Skyway</h1>
         <p className="mt-2 text-center text-sm text-slate-600">Draft one blueprint stack each turn, cap each grid cell at three cards, and score longest increasing paths by suit.</p>
       </div>
+
+      <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold mb-3">Description</h2>
+        <p className="text-slate-700">
+          Arranging tiles to create maps is a cornerstone of many great city-building games like Suburbia and Sprawlopolis. However,
+          most games of this genre require more information on each card than a simple rank-and-suit system can provide. Skyway takes
+          its cue from the Decktet game Aucteraden. By allowing a single space to have more than one suit on it, the paths can
+          intersect and weave around each other to create a small, tight puzzle.
+        </p>
+      </section>
+
+      <section className="w-full max-w-6xl rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold mb-3">How to Play</h2>
+        <ul className="list-disc pl-5 space-y-2 text-slate-700">
+          <li><strong>Overview:</strong> Over three passes through the deck, draft stacks of cards from the market and place them in your 3x3 grid. Each cell may stack only three cards high; overflow cards are discarded from the bottom.</li>
+          <li><strong>Components:</strong> A standard 52-card deck with no jokers.</li>
+          <li><strong>Setup:</strong> Separate all twelve face cards. Choose any three face cards as round markers and remove the rest. Shuffle the remaining 40-card deck and set space for discard, a 3-space market, and a 3x3 play area. Turn one round marker face down to mark round one.</li>
+          <li><strong>Turn structure:</strong> (1) Reset the market by dealing five cards into three stacks in a fixed 2-2-1 pattern. (2) Draft one stack and discard the other two. Place the drafted stack into one grid cell without reordering cards.</li>
+          <li><strong>Stack limit:</strong> If a cell exceeds three cards after placement, discard bottom cards until only three remain in that cell.</li>
+          <li><strong>Second and third round:</strong> When the deck runs out, shuffle discard to form a new deck and continue. During the third pass, if the deck runs out while dealing a market, shuffle once more only to finish that final market.</li>
+          <li><strong>Game end and scoring:</strong> After three passes, for each suit find the longest increasing sequence along orthogonally adjacent grid cells. You must move to a new cell each step. You win if all suits have a sequence of at least length 5. Score is the sum of all four suit lengths.</li>
+        </ul>
+      </section>
 
       <div className="w-full max-w-6xl grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_300px]">
         <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -372,8 +384,7 @@ export default function SkywayPage() {
                 : 'Select one blueprint stack, then choose a grid cell for placement.'}
           </div>
           <div className="grid gap-2">
-            <button type="button" onClick={undoMove} disabled={history.length === 0} className="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-40">Undo</button>
-            <button type="button" onClick={startNewGame} className="rounded bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-600">New game</button>
+            <button type="button" onClick={startNewGame} className="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">New game</button>
           </div>
         </section>
 
@@ -390,7 +401,7 @@ export default function SkywayPage() {
                     key={`stack-${stackIndex}`}
                     onClick={() => !state.gameOver && !isEmpty && setSelectedStackIndex(stackIndex)}
                     disabled={state.gameOver || isEmpty}
-                    className={`min-h-36 rounded-md border p-2 text-left transition disabled:opacity-50 ${isSelected ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-200 bg-slate-50 hover:border-slate-300'}`}
+                    className={`min-h-36 rounded-md border p-2 text-left transition disabled:opacity-50 ${isSelected ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-200 bg-slate-50 hover:border-sky-400 hover:ring-2 hover:ring-sky-200'}`}
                   >
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Blueprint {stackIndex + 1}</p>
                     <div className="mt-1 flex min-h-20 flex-wrap gap-2">
@@ -419,7 +430,7 @@ export default function SkywayPage() {
                   key={`cell-${cellIndex}`}
                   onClick={() => placeBlueprint(cellIndex)}
                   disabled={!canPlace}
-                  className={`relative min-h-28 rounded-md border p-2 text-left transition ${canPlace ? 'border-emerald-300 bg-emerald-50 hover:border-emerald-500' : 'border-slate-200 bg-slate-50'}`}
+                  className={`relative min-h-28 rounded-md border p-2 text-left transition ${canPlace ? 'border-blue-400 bg-blue-50 hover:border-amber-400 hover:ring-2 hover:ring-amber-200' : 'border-slate-200 bg-slate-50'}`}
                 >
                   <p className="text-xs font-semibold text-slate-500">Cell {cellIndex + 1}</p>
                   <div className="mt-2 flex min-h-16 flex-wrap gap-2">
@@ -464,6 +475,14 @@ export default function SkywayPage() {
           </div>
         </section>
       </div>
+
+      <p className="w-full max-w-6xl text-center text-sm text-slate-600">
+        Credit for this game goes to Isaludo. Rule book for this and other games available at
+        {' '}
+        <a className="text-blue-700 underline" href="https://drive.google.com/file/d/1DB2YF46s0oVFUSIpR9vxoGIbhpTKz2jw/view" target="_blank" rel="noreferrer">
+          https://drive.google.com/file/d/1DB2YF46s0oVFUSIpR9vxoGIbhpTKz2jw/view
+        </a>
+      </p>
     </main>
   );
 }
