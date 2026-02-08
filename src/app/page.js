@@ -91,6 +91,12 @@ export default function Home() {
       description: 'Raid a looping temple, collect jewels, and dodge traps',
       previewImage: '/loot-the-loop-preview.svg',
     },
+    {
+      route: 'syndicate',
+      title: 'Syndicate',
+      description: 'Promote through ranks with strict digit-math replacements',
+      previewImage: '/syndicate-preview.svg',
+    },
   ];
 
   return (

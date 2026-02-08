@@ -1,0 +1,39 @@
+<svg width="640" height="360" viewBox="0 0 640 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="640" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E2E8F0"/>
+      <stop offset="1" stop-color="#BAE6FD"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" rx="24" fill="url(#bg)"/>
+  <rect x="36" y="34" width="568" height="292" rx="18" fill="#FFFFFF" fill-opacity="0.8"/>
+  <text x="58" y="80" fill="#0F172A" font-size="32" font-family="Arial, sans-serif" font-weight="700">Syndicate</text>
+  <text x="58" y="108" fill="#334155" font-size="18" font-family="Arial, sans-serif">Promote · Replace · Sacrifice</text>
+
+  <g transform="translate(64 136)">
+    <rect width="86" height="118" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+    <text x="16" y="34" fill="#0F172A" font-size="24" font-family="Arial, sans-serif" font-weight="700">R5</text>
+    <text x="16" y="74" fill="#0F172A" font-size="28" font-family="Arial, sans-serif">7♣</text>
+    <text x="16" y="102" fill="#334155" font-size="14" font-family="Arial, sans-serif">members</text>
+  </g>
+
+  <g transform="translate(176 122)">
+    <path d="M0 28L66 28" stroke="#0EA5E9" stroke-width="4" stroke-linecap="round"/>
+    <path d="M56 18L66 28L56 38" stroke="#0EA5E9" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g transform="translate(264 124)">
+    <rect width="86" height="118" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+    <text x="16" y="34" fill="#0F172A" font-size="24" font-family="Arial, sans-serif" font-weight="700">R4</text>
+    <text x="16" y="74" fill="#BE123C" font-size="28" font-family="Arial, sans-serif">A♥</text>
+    <text x="16" y="102" fill="#334155" font-size="14" font-family="Arial, sans-serif">target</text>
+  </g>
+
+  <g transform="translate(392 124)">
+    <rect width="188" height="118" rx="12" fill="#F8FAFC" stroke="#94A3B8" stroke-dasharray="7 6"/>
+    <text x="14" y="30" fill="#0F172A" font-size="18" font-family="Arial, sans-serif" font-weight="700">Rule Check</text>
+    <text x="14" y="58" fill="#334155" font-size="15" font-family="Arial, sans-serif">(a + b) % 10</text>
+    <text x="14" y="82" fill="#334155" font-size="15" font-family="Arial, sans-serif">or (a × b) % 10</text>
+    <text x="14" y="104" fill="#0F172A" font-size="14" font-family="Arial, sans-serif">sacrifice on overflow</text>
+  </g>
+</svg>
