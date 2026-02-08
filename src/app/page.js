@@ -46,6 +46,12 @@ export default function Home() {
       description: 'Explore coin-change optimization with DP',
       previewImage: '/dynamic-programming-preview.svg',
     },
+    {
+      route: 'fibonacci-heap-dp',
+      title: 'Fibonacci Heap DP Demo',
+      description: 'Explore shortest-path DP powered by a Fibonacci heap',
+      previewImage: '/fibonacci-heap-dp-preview.svg',
+    },
   ];
 
   const ckplaceGames = [
