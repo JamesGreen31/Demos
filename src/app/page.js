@@ -52,6 +52,12 @@ export default function Home() {
       description: 'Explore shortest-path DP powered by a Fibonacci heap',
       previewImage: '/fibonacci-heap-dp-preview.svg',
     },
+    {
+      route: 'wasm-vs-js',
+      title: 'WASM vs JS',
+      description: 'Visualize the speed of WASM with recursive Fibonacci',
+      previewImage: '/wasm-vs-js-preview.svg',
+    },
   ];
 
   const ckplaceGames = [
@@ -88,7 +94,7 @@ export default function Home() {
   ];
 
   return (
-    <main className="flex min-h-screen flex-col items-center m-8">
+    <main className="flex min-h-screen flex-col items-center m-8 gap-8">
       <div>
         <h1 className="text-4xl font-bold mb-4">Ckplace demos</h1>
       </div>
@@ -101,42 +107,15 @@ export default function Home() {
           ))}
         </div>
       </section>
-        <DemoCard
-          route="minesweeper"
-          title="Minesweeper Demo"
-          description="Play a classic minesweeper board"
-          previewImage="/minesweeper-preview.svg"
-        />
 
-        <DemoCard
-          route="meta-tic-tac-toe"
-          title="Meta Tic-Tac-Toe"
-          description="Play a strategic ultimate tic-tac-toe variant"
-          previewImage="/meta-tic-tac-toe-preview.svg"
-        />
-
-        <DemoCard
-          route="dynamic-programming"
-          title="Dynamic Programming Lab"
-          description="Explore coin-change optimization with DP"
-          previewImage="/dynamic-programming-preview.svg"
-        />
-
-        <DemoCard
-          route="wasm-vs-js"
-          title="WASM vs JS"
-          description="Visualize the speed of WASM with recursive Fibonacci"
-          previewImage="/wasm-vs-js-preview.svg"
-        />
-
-
-        <DemoCard
-          route="loot-the-loop"
-          title="Loot the Loop"
-          description="Raid a looping temple, collect jewels, and dodge traps"
-          previewImage="/loot-the-loop-preview.svg"
-        />
-      </div>
+      <section className="w-full max-w-6xl">
+        <h2 className="text-2xl font-semibold mb-3">Ckplace Games</h2>
+        <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+          {ckplaceGames.map((game) => (
+            <DemoCard key={game.route} {...game} />
+          ))}
+        </div>
+      </section>
     </main>
   );
 }

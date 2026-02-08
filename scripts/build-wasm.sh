@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC_FILE="$ROOT_DIR/wasm/fibonacci/src/lib.rs"
 OUT_FILE="$ROOT_DIR/public/wasm/fib.wasm"
+OUT_DIR="$(dirname "$OUT_FILE")"
+
+mkdir -p "$OUT_DIR"
 
 if ! command -v rustc >/dev/null 2>&1; then
   echo "Error: rustc is required to build the WASM demo artifact." >&2
