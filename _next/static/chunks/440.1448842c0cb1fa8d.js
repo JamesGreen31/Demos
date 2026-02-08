@@ -1,1 +1,0 @@
-self.onmessage=e=>{let{type:s,iterations:t}=e.data||{};if("cancel"===s){self.close();return}if("start"!==s)return;let r=performance.now();for(let e=1;e<=t;e+=1){let s=function e(s){return s<=1?s:e(s-1)+e(s-2)}(e);self.postMessage({type:"progress",step:e,value:s})}self.postMessage({type:"done",elapsedMs:performance.now()-r})},_N_E={};
