@@ -1,9 +1,16 @@
 let wasmFib = null;
 let wasmFibNext = null;
+let wasmTimedReset = null;
+let wasmTimedStepMany = null;
 
 async function loadFibFunctions(wasmUrl) {
-  if (wasmFib && wasmFibNext) {
-    return { fib: wasmFib, fibNext: wasmFibNext };
+  if (wasmFib && wasmFibNext && wasmTimedReset && wasmTimedStepMany) {
+    return {
+      fib: wasmFib,
+      fibNext: wasmFibNext,
+      fibTimedReset: wasmTimedReset,
+      fibTimedStepMany: wasmTimedStepMany,
+    };
   }
 
   const response = await fetch(wasmUrl);
@@ -12,11 +19,38 @@ async function loadFibFunctions(wasmUrl) {
 
   wasmFib = instance.exports.fib;
   wasmFibNext = instance.exports.fib_next;
-  return { fib: wasmFib, fibNext: wasmFibNext };
+  wasmTimedReset = instance.exports.fib_timed_reset;
+  wasmTimedStepMany = instance.exports.fib_timed_step_many;
+
+  return {
+    fib: wasmFib,
+    fibNext: wasmFibNext,
+    fibTimedReset: wasmTimedReset,
+    fibTimedStepMany: wasmTimedStepMany,
+  };
+}
+
+function runTimedRace({ durationMs, batchSize, uiUpdateMs, fibTimedReset, fibTimedStepMany }) {
+  fibTimedReset();
+  const start = performance.now();
+  let score = 0;
+  let nextUiUpdateAt = start + uiUpdateMs;
+
+  while (performance.now() - start < durationMs) {
+    score = fibTimedStepMany(batchSize) >>> 0;
+
+    const now = performance.now();
+    if (now >= nextUiUpdateAt) {
+      self.postMessage({ type: 'timedProgress', score, elapsedMs: now - start });
+      nextUiUpdateAt = now + uiUpdateMs;
+    }
+  }
+
+  self.postMessage({ type: 'timedDone', elapsedMs: performance.now() - start, score });
 }
 
 self.onmessage = async (event) => {
-  const { type, iterations, wasmUrl, durationMs } = event.data || {};
+  const { type, iterations, wasmUrl, durationMs, batchSize = 1, uiUpdateMs = 100 } = event.data || {};
 
   if (type === 'cancel') {
     self.close();
@@ -28,30 +62,18 @@ self.onmessage = async (event) => {
   }
 
   try {
-    const { fib, fibNext } = await loadFibFunctions(wasmUrl);
+    const { fib, fibNext, fibTimedReset, fibTimedStepMany } = await loadFibFunctions(wasmUrl);
 
-    if (type === 'startTimed') {
-      if (typeof fibNext !== 'function') {
-        throw new Error('WASM timed mode requires efficient fib_next export');
-      }
-
-      const start = performance.now();
-      let score = 0;
-      let prev = 0;
-      let curr = 1;
-
-      while (performance.now() - start < durationMs) {
-        const next = fibNext(prev, curr);
-        prev = curr;
-        curr = next;
-        score += 1;
-      }
-
-      self.postMessage({ type: 'timedDone', elapsedMs: performance.now() - start, score });
-      return;
+    if (typeof fib !== 'function' || typeof fibNext !== 'function') {
+      throw new Error('WASM module is missing Fibonacci exports');
     }
 
-    if (type !== 'start') {
+    if (type === 'startTimed') {
+      if (typeof fibTimedReset !== 'function' || typeof fibTimedStepMany !== 'function') {
+        throw new Error('WASM timed mode requires fib_timed_reset and fib_timed_step_many exports');
+      }
+
+      runTimedRace({ durationMs, batchSize, uiUpdateMs, fibTimedReset, fibTimedStepMany });
       return;
     }
 

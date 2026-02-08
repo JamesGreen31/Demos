@@ -18,7 +18,10 @@ rustup target add wasm32-unknown-unknown >/dev/null
 rustc \
   --target wasm32-unknown-unknown \
   --crate-type cdylib \
-  -O \
+  -C opt-level=3 \
+  -C lto=fat \
+  -C codegen-units=1 \
+  -C panic=abort \
   "$SRC_FILE" \
   -o "$OUT_FILE"
 

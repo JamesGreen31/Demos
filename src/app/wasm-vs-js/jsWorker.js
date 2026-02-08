@@ -6,34 +6,45 @@ function fib(n) {
   return fib(n - 1) + fib(n - 2);
 }
 
-self.onmessage = (event) => {
-  const { type, iterations, durationMs } = event.data || {};
+function runTimedRace({ durationMs, batchSize, uiUpdateMs }) {
+  const start = performance.now();
+  let score = 0;
+  let prev = 0;
+  let curr = 1;
+  let nextUiUpdateAt = start + uiUpdateMs;
 
-  if (type === 'cancel') {
-    self.close();
-    return;
-  }
-
-  if (type !== 'start') {
-    if (type !== 'startTimed') {
-      return;
-    }
-  }
-
-  if (type === 'startTimed') {
-    const start = performance.now();
-    let score = 0;
-    let prev = 0;
-    let curr = 1;
-
-    while (performance.now() - start < durationMs) {
+  while (performance.now() - start < durationMs) {
+    for (let index = 0; index < batchSize; index += 1) {
       const next = (prev + curr) >>> 0;
       prev = curr;
       curr = next;
       score += 1;
     }
 
-    self.postMessage({ type: 'timedDone', elapsedMs: performance.now() - start, score });
+    const now = performance.now();
+    if (now >= nextUiUpdateAt) {
+      self.postMessage({ type: 'timedProgress', score, elapsedMs: now - start });
+      nextUiUpdateAt = now + uiUpdateMs;
+    }
+  }
+
+  self.postMessage({ type: 'timedDone', elapsedMs: performance.now() - start, score });
+}
+
+self.onmessage = (event) => {
+  const { type, iterations, durationMs, batchSize = 1, uiUpdateMs = 100 } = event.data || {};
+
+  if (type === 'cancel') {
+    self.close();
+    return;
+  }
+
+  if (type !== 'start' && type !== 'startTimed') {
+    return;
+  }
+
+  if (type === 'startTimed') {
+    runTimedRace({ durationMs, batchSize, uiUpdateMs });
     return;
   }
 
