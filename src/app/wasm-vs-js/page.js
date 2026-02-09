@@ -103,21 +103,24 @@ export default function WasmVsJsPage() {
 
   const [timedRaceStatus, setTimedRaceStatus] = useState('idle');
   const [timedErrorMessage, setTimedErrorMessage] = useState('');
-  const [jsTimedStepsCompleted, setJsTimedStepsCompleted] = useState(null);
+  const [jsNativeTimedStepsCompleted, setJsNativeTimedStepsCompleted] = useState(null);
+  const [jsOptimizedTimedStepsCompleted, setJsOptimizedTimedStepsCompleted] = useState(null);
   const [wasmTimedStepsCompleted, setWasmTimedStepsCompleted] = useState(null);
   const [timedBatchSize, setTimedBatchSize] = useState(10_000);
-  const [timedJsMode, setTimedJsMode] = useState('optimized');
   const [timedUiUpdateMs, setTimedUiUpdateMs] = useState(100);
-  const [jsTimedElapsedMs, setJsTimedElapsedMs] = useState(null);
+  const [jsNativeTimedElapsedMs, setJsNativeTimedElapsedMs] = useState(null);
+  const [jsOptimizedTimedElapsedMs, setJsOptimizedTimedElapsedMs] = useState(null);
   const [wasmTimedElapsedMs, setWasmTimedElapsedMs] = useState(null);
-  const [jsTimedDone, setJsTimedDone] = useState(false);
+  const [jsNativeTimedDone, setJsNativeTimedDone] = useState(false);
+  const [jsOptimizedTimedDone, setJsOptimizedTimedDone] = useState(false);
   const [wasmTimedDone, setWasmTimedDone] = useState(false);
   const [timedRaceStartedAt, setTimedRaceStartedAt] = useState(null);
   const [timedRaceRemainingMs, setTimedRaceRemainingMs] = useState(TIMED_RACE_DURATION_MS);
 
   const jsWorkerRef = useRef(null);
   const wasmWorkerRef = useRef(null);
-  const jsTimedWorkerRef = useRef(null);
+  const jsNativeTimedWorkerRef = useRef(null);
+  const jsOptimizedTimedWorkerRef = useRef(null);
   const wasmTimedWorkerRef = useRef(null);
 
   const isRunning = raceStatus === 'running';
@@ -147,27 +150,50 @@ export default function WasmVsJsPage() {
     return buildPercentDiffMessage(jsElapsedMs, wasmElapsedMs, 'JavaScript', 'WASM', 'speed');
   }, [isDone, jsElapsedMs, wasmElapsedMs]);
 
+  const timedResults = useMemo(() => {
+    const racers = [
+      { label: 'Native JS', stepsCompleted: jsNativeTimedStepsCompleted },
+      { label: 'Optimized JS', stepsCompleted: jsOptimizedTimedStepsCompleted },
+      { label: 'WebAssembly', stepsCompleted: wasmTimedStepsCompleted },
+    ];
+
+    return racers.filter((racer) => racer.stepsCompleted !== null);
+  }, [jsNativeTimedStepsCompleted, jsOptimizedTimedStepsCompleted, wasmTimedStepsCompleted]);
+
   const timedWinnerMessage = useMemo(() => {
-    if (!isTimedDone || jsTimedStepsCompleted === null || wasmTimedStepsCompleted === null) {
+    if (!isTimedDone || timedResults.length !== 3) {
       return '';
     }
 
-    if (jsTimedStepsCompleted === wasmTimedStepsCompleted) {
-      return 'Timed race tie! Both implementations completed the same number of steps.';
+    const sorted = [...timedResults].sort((a, b) => Number(b.stepsCompleted - a.stepsCompleted));
+    if (sorted[0].stepsCompleted === sorted[2].stepsCompleted) {
+      return 'Timed race tie! All three implementations completed the same number of steps.';
     }
 
-    return jsTimedStepsCompleted > wasmTimedStepsCompleted
-      ? 'JavaScript completed more timed-loop steps in 30 seconds.'
-      : 'WASM completed more timed-loop steps in 30 seconds.';
-  }, [isTimedDone, jsTimedStepsCompleted, wasmTimedStepsCompleted]);
+    return `${sorted[0].label} completed the most recurrence steps in 30 seconds.`;
+  }, [isTimedDone, timedResults]);
+
+  const timedInterpretationMessage = useMemo(() => {
+    if (!isTimedDone || timedResults.length !== 3) {
+      return '';
+    }
+
+    const sorted = [...timedResults].sort((a, b) => Number(b.stepsCompleted - a.stepsCompleted));
+    if (sorted[0].stepsCompleted === sorted[2].stepsCompleted) {
+      return 'All three implementations produced the same throughput in this run, so there is no runtime winner to interpret.';
+    }
+
+    return `${sorted[0].label} completed more recurrence steps because this workload is CPU-bound and consists of simple integer operations. WebAssembly executes compiled machine code, while JavaScript executes dynamically-typed operations with runtime checks.`;
+  }, [isTimedDone, timedResults]);
 
   const timedPercentDiffMessage = useMemo(() => {
-    if (!isTimedDone || jsTimedStepsCompleted === null || wasmTimedStepsCompleted === null) {
+    if (!isTimedDone || timedResults.length !== 3) {
       return '';
     }
 
-    return buildPercentDiffMessage(jsTimedStepsCompleted, wasmTimedStepsCompleted, 'JavaScript', 'WASM', 'steps completed', false);
-  }, [isTimedDone, jsTimedStepsCompleted, wasmTimedStepsCompleted]);
+    const sorted = [...timedResults].sort((a, b) => Number(b.stepsCompleted - a.stepsCompleted));
+    return buildPercentDiffMessage(sorted[0].stepsCompleted, sorted[1].stepsCompleted, sorted[0].label, sorted[1].label, 'steps completed', false);
+  }, [isTimedDone, timedResults]);
 
   const timedRaceProgressPercent = useMemo(() => {
     const elapsedMs = TIMED_RACE_DURATION_MS - timedRaceRemainingMs;
@@ -187,9 +213,14 @@ export default function WasmVsJsPage() {
   };
 
   const stopTimedWorkers = () => {
-    if (jsTimedWorkerRef.current) {
-      jsTimedWorkerRef.current.terminate();
-      jsTimedWorkerRef.current = null;
+    if (jsNativeTimedWorkerRef.current) {
+      jsNativeTimedWorkerRef.current.terminate();
+      jsNativeTimedWorkerRef.current = null;
+    }
+
+    if (jsOptimizedTimedWorkerRef.current) {
+      jsOptimizedTimedWorkerRef.current.terminate();
+      jsOptimizedTimedWorkerRef.current = null;
     }
 
     if (wasmTimedWorkerRef.current) {
@@ -207,12 +238,15 @@ export default function WasmVsJsPage() {
   };
 
   const resetTimedRace = () => {
-    setJsTimedStepsCompleted(null);
+    setJsNativeTimedStepsCompleted(null);
+    setJsOptimizedTimedStepsCompleted(null);
     setWasmTimedStepsCompleted(null);
-    setJsTimedElapsedMs(null);
+    setJsNativeTimedElapsedMs(null);
+    setJsOptimizedTimedElapsedMs(null);
     setWasmTimedElapsedMs(null);
     setTimedErrorMessage('');
-    setJsTimedDone(false);
+    setJsNativeTimedDone(false);
+    setJsOptimizedTimedDone(false);
     setWasmTimedDone(false);
     setTimedRaceStartedAt(null);
     setTimedRaceRemainingMs(TIMED_RACE_DURATION_MS);
@@ -232,10 +266,10 @@ export default function WasmVsJsPage() {
   }, [jsElapsedMs, wasmElapsedMs]);
 
   useEffect(() => {
-    if (jsTimedDone && wasmTimedDone) {
+    if (jsNativeTimedDone && jsOptimizedTimedDone && wasmTimedDone) {
       setTimedRaceStatus('done');
     }
-  }, [jsTimedDone, wasmTimedDone]);
+  }, [jsNativeTimedDone, jsOptimizedTimedDone, wasmTimedDone]);
 
   useEffect(() => {
     if (!isTimedRunning || timedRaceStartedAt === null) {
@@ -319,24 +353,41 @@ export default function WasmVsJsPage() {
     setTimedRaceStartedAt(startedAt);
     setTimedRaceRemainingMs(TIMED_RACE_DURATION_MS);
 
-    const jsWorker = new Worker(new URL('./jsWorker.js', import.meta.url));
+    const jsNativeWorker = new Worker(new URL('./jsWorker.js', import.meta.url));
+    const jsOptimizedWorker = new Worker(new URL('./jsWorker.js', import.meta.url));
     const wasmWorker = new Worker(new URL('./wasmWorker.js', import.meta.url));
 
-    jsTimedWorkerRef.current = jsWorker;
+    jsNativeTimedWorkerRef.current = jsNativeWorker;
+    jsOptimizedTimedWorkerRef.current = jsOptimizedWorker;
     wasmTimedWorkerRef.current = wasmWorker;
 
-    jsWorker.onmessage = (event) => {
+    jsNativeWorker.onmessage = (event) => {
       const data = event.data || {};
 
       if (data.type === 'timedProgress') {
-        setJsTimedStepsCompleted(data.stepsCompleted);
-        setJsTimedElapsedMs(data.elapsedMs);
+        setJsNativeTimedStepsCompleted(data.stepsCompleted);
+        setJsNativeTimedElapsedMs(data.elapsedMs);
       }
 
       if (data.type === 'timedDone') {
-        setJsTimedStepsCompleted(data.stepsCompleted);
-        setJsTimedElapsedMs(data.elapsedMs);
-        setJsTimedDone(true);
+        setJsNativeTimedStepsCompleted(data.stepsCompleted);
+        setJsNativeTimedElapsedMs(data.elapsedMs);
+        setJsNativeTimedDone(true);
+      }
+    };
+
+    jsOptimizedWorker.onmessage = (event) => {
+      const data = event.data || {};
+
+      if (data.type === 'timedProgress') {
+        setJsOptimizedTimedStepsCompleted(data.stepsCompleted);
+        setJsOptimizedTimedElapsedMs(data.elapsedMs);
+      }
+
+      if (data.type === 'timedDone') {
+        setJsOptimizedTimedStepsCompleted(data.stepsCompleted);
+        setJsOptimizedTimedElapsedMs(data.elapsedMs);
+        setJsOptimizedTimedDone(true);
       }
     };
 
@@ -361,12 +412,19 @@ export default function WasmVsJsPage() {
       }
     };
 
-    jsWorker.postMessage({
+    jsNativeWorker.postMessage({
       type: 'startTimed',
       durationMs: TIMED_RACE_DURATION_MS,
       batchSize: timedBatchSize,
       uiUpdateMs: timedUiUpdateMs,
-      jsTimedMode: timedJsMode,
+      jsTimedMode: 'naive',
+    });
+    jsOptimizedWorker.postMessage({
+      type: 'startTimed',
+      durationMs: TIMED_RACE_DURATION_MS,
+      batchSize: timedBatchSize,
+      uiUpdateMs: timedUiUpdateMs,
+      jsTimedMode: 'optimized',
     });
     wasmWorker.postMessage({
       type: 'startTimed',
@@ -502,9 +560,37 @@ export default function WasmVsJsPage() {
 
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-4">Part 2: 30-Second Endurance Race</h2>
-        <p className="text-slate-700 mb-4">
-          Runs 30 seconds of throughput-oriented Fibonacci progression in both JS and WASM. Each engine reports steps completed (loop iterations), and updates batch many iterations before crossing thread/runtime boundaries.
+        <p className="text-slate-700 mb-3">
+          <span className="font-semibold">What is Phase 2 measuring?</span> Phase 2 is not measuring the size of Fibonacci numbers.
+          Instead, it measures how many times each runtime can execute a small, dependent computation in a fixed time window.
+          Each &ldquo;step&rdquo; represents one update of the Fibonacci recurrence: <code className="rounded bg-slate-100 px-1">prev, curr &rarr; curr, prev + curr (mod 2&sup3;&sup2;)</code>.
+          The values intentionally overflow 32-bit integers, so numeric correctness is irrelevant. The goal is to measure computational throughput &mdash; how many operations the runtime can perform per second.
+          This is effectively a CPU-bound workload similar to physics simulation, cryptography, or numerical processing.
         </p>
+        <p className="text-slate-700 mb-4">
+          Runs 30 seconds of throughput-oriented Fibonacci progression for Native JS, Optimized JS, and WASM. Batch size controls how much computation happens before each worker reports progress, while UI update frequency controls how often those progress messages are surfaced to the page.
+        </p>
+
+        <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 p-4">
+          <p className="text-sm font-semibold text-slate-800 mb-2">What is a &ldquo;step&rdquo;?</p>
+          <p className="text-sm text-slate-700 mb-2">
+            A step is one update of the Fibonacci state: <code className="rounded bg-white px-1">(prev, curr) &rarr; (curr, prev + curr mod 2&sup3;&sup2;)</code>.
+            We count how many updates can be performed in 30 seconds.
+          </p>
+          <details className="text-sm text-slate-700">
+            <summary className="cursor-pointer font-semibold text-slate-800">More detail</summary>
+            <p className="mt-2">
+              We are not measuring the numeric value of Fibonacci numbers because they overflow quickly.
+              Instead, we measure how many operations the runtime can execute.
+              Think of a step as a single unit of computational work.
+            </p>
+          </details>
+        </div>
+
+        <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+          <p className="text-sm font-semibold text-slate-800 mb-1">What is Phase 2 measuring?</p>
+          <p className="text-sm text-slate-700">Throughput over a fixed 30-second window, not Fibonacci number magnitude.</p>
+        </div>
 
         <div className="flex flex-wrap gap-3 mb-4">
           <button
@@ -537,7 +623,15 @@ export default function WasmVsJsPage() {
 
         <div className="mb-4 grid md:grid-cols-2 gap-4">
           <label className="flex flex-col gap-2">
-            <span className="font-semibold">Batch size (iterations per call)</span>
+            <span className="font-semibold" title="Controls how much work is done before the worker reports progress.
+
+Small batches emphasize JavaScript↔WebAssembly call overhead.
+Large batches emphasize raw computation speed.
+
+This demonstrates an important property of WebAssembly:
+
+• Small tasks → JavaScript competitive
+• Large compute loops → WebAssembly faster">Batch size (iterations per call)</span>
             <select
               value={timedBatchSize}
               onChange={(event) => setTimedBatchSize(Number.parseInt(event.target.value, 10))}
@@ -550,26 +644,19 @@ export default function WasmVsJsPage() {
                 </option>
               ))}
             </select>
-            <span className="text-sm text-slate-600">Small batches emphasize JS↔WASM call overhead; larger batches emphasize raw compute throughput.</span>
+            <span className="text-sm text-slate-600">Hover the label for why batch sizing changes JS↔WASM behavior.</span>
           </label>
 
 
           <label className="flex flex-col gap-2">
-            <span className="font-semibold">JavaScript mode</span>
-            <select
-              value={timedJsMode}
-              onChange={(event) => setTimedJsMode(event.target.value)}
-              className="rounded border border-slate-300 px-3 py-2 bg-white"
-              disabled={isTimedRunning || isRunning}
-            >
-              <option value="naive">Naive (per-iteration &gt;&gt;&gt; 0 coercion)</option>
-              <option value="optimized">Optimized (Uint32Array state)</option>
-            </select>
-            <span className="text-sm text-slate-600">Compare JS baseline vs JIT-friendly typed-array loop under the same batch and UI settings.</span>
-          </label>
+            <span className="font-semibold" title="UI update frequency (worker progress reports)
 
-          <label className="flex flex-col gap-2">
-            <span className="font-semibold">UI update frequency</span>
+Controls how often each racer posts progress back to the page.
+
+Faster updates improve animation smoothness but add messaging overhead.
+Slower updates reduce overhead and can slightly improve measured throughput.
+
+Use this to see the trade-off between observability and benchmark purity.">UI update frequency</span>
             <select
               value={timedUiUpdateMs}
               onChange={(event) => setTimedUiUpdateMs(Number.parseInt(event.target.value, 10))}
@@ -582,7 +669,7 @@ export default function WasmVsJsPage() {
                 </option>
               ))}
             </select>
-            <span className="text-sm text-slate-600">Current mode: {timedUiModeLabel}.</span>
+            <span className="text-sm text-slate-600">Hover the label to understand the throughput vs responsiveness trade-off. Current mode: {timedUiModeLabel}.</span>
           </label>
         </div>
 
@@ -604,11 +691,16 @@ export default function WasmVsJsPage() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-3 gap-4">
           <div className="rounded-lg border border-slate-200 p-4">
-            <h3 className="text-lg font-semibold mb-1">JavaScript</h3>
-            <p className="text-slate-700">Steps completed: {formatSteps(jsTimedStepsCompleted) ?? (isTimedRunning ? 'Running...' : '-')}</p>
-            <p className="text-slate-600 text-sm">Elapsed: {formatElapsed(jsTimedElapsedMs) ?? '-'}</p>
+            <h3 className="text-lg font-semibold mb-1">Native JS</h3>
+            <p className="text-slate-700">Steps completed: {formatSteps(jsNativeTimedStepsCompleted) ?? (isTimedRunning ? 'Running...' : '-')}</p>
+            <p className="text-slate-600 text-sm">Elapsed: {formatElapsed(jsNativeTimedElapsedMs) ?? '-'}</p>
+          </div>
+          <div className="rounded-lg border border-slate-200 p-4">
+            <h3 className="text-lg font-semibold mb-1">Optimized JS</h3>
+            <p className="text-slate-700">Steps completed: {formatSteps(jsOptimizedTimedStepsCompleted) ?? (isTimedRunning ? 'Running...' : '-')}</p>
+            <p className="text-slate-600 text-sm">Elapsed: {formatElapsed(jsOptimizedTimedElapsedMs) ?? '-'}</p>
           </div>
           <div className="rounded-lg border border-slate-200 p-4">
             <h3 className="text-lg font-semibold mb-1">WASM (Rust)</h3>
@@ -619,6 +711,18 @@ export default function WasmVsJsPage() {
 
         {timedWinnerMessage ? <p className="mt-4 font-semibold text-slate-800">{timedWinnerMessage}</p> : null}
         {timedPercentDiffMessage ? <p className="mt-2 text-slate-700">{timedPercentDiffMessage}</p> : null}
+        {timedInterpretationMessage ? (
+          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+            <p className="font-semibold text-slate-800 mb-2">Interpretation</p>
+            <p className="text-slate-700 mb-2">{timedInterpretationMessage}</p>
+            <p className="text-slate-700 mb-2">
+              This result does not mean WebAssembly is always faster. For UI logic, event handling, and small tasks JavaScript may perform similarly or better.
+            </p>
+            <p className="text-slate-700">
+              WebAssembly shows its advantage when performing large amounts of numerical computation.
+            </p>
+          </div>
+        ) : null}
       </section>
     </main>
   );
