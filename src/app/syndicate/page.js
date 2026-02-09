@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const SUITS = ['♠', '♥', '♦', '♣'];
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
@@ -137,12 +137,32 @@ export default function SyndicatePage() {
   const demosHref = process.env.NODE_ENV === 'production' ? '/Demos' : '/';
   const [state, setState] = useState(() => createInitialState());
   const [history, setHistory] = useState([]);
+  const [moveTick, setMoveTick] = useState(0);
+  const moveTimeoutRef = useRef(null);
 
   useEffect(() => {
     document.title = 'Syndicate';
   }, []);
 
+  useEffect(() => () => {
+    if (moveTimeoutRef.current) {
+      window.clearTimeout(moveTimeoutRef.current);
+    }
+  }, []);
+
   const promotableRanks = useMemo(() => RANK_LEVELS.filter((rank) => state.members[rank].length === 3), [state.members]);
+
+
+  function triggerMoveAnimation() {
+    setMoveTick((value) => value + 1);
+    if (moveTimeoutRef.current) {
+      window.clearTimeout(moveTimeoutRef.current);
+    }
+    moveTimeoutRef.current = window.setTimeout(() => {
+      setMoveTick(0);
+      moveTimeoutRef.current = null;
+    }, 380);
+  }
 
   function snapshotState(value) {
     return {
@@ -167,6 +187,7 @@ export default function SyndicatePage() {
       const next = updater(prev);
       if (next === prev) return prev;
       setHistory((prevHistory) => [...prevHistory, snapshotState(prev)]);
+      triggerMoveAnimation();
       return next;
     });
   }
@@ -174,6 +195,7 @@ export default function SyndicatePage() {
   function resetGame() {
     setHistory([]);
     setState(createInitialState());
+    triggerMoveAnimation();
   }
 
   function setLossMessage(nextState, message) {
@@ -367,6 +389,7 @@ export default function SyndicatePage() {
       if (prevHistory.length === 0) return prevHistory;
       const previousState = prevHistory[prevHistory.length - 1];
       setState(snapshotState(previousState));
+      triggerMoveAnimation();
       return prevHistory.slice(0, -1);
     });
   }
@@ -495,11 +518,11 @@ export default function SyndicatePage() {
                       const isActive = state.selectedMemberIndex === memberIndex && isSelectedRank;
                       return (
                         <button
-                          key={card.id}
+                          key={`${card.id}-${moveTick}`}
                           type="button"
                           onClick={() => (sacrificeSelectable ? chooseSacrifice(memberIndex) : chooseMember(rank, memberIndex))}
                           disabled={(!selectable && !sacrificeSelectable) || (sacrificeSelectable && isPromotedCard)}
-                          className={`min-w-14 px-3 py-2 rounded border text-sm font-semibold ${getCardTone(card)} ${
+                          className={`min-w-14 px-3 py-2 rounded border text-sm font-semibold ${moveTick > 0 ? 'animate-card-shift' : ''} ${getCardTone(card)} ${
                             isActive ? 'ring-2 ring-sky-500' : ''
                           } ${sacrificeSelectable ? 'ring-2 ring-amber-500' : ''} ${
                             sacrificeSelectable && isPromotedCard ? 'ring-2 ring-slate-400' : ''
@@ -523,11 +546,11 @@ export default function SyndicatePage() {
                       const canUse = state.replacementOptions.some((option) => option.rank === rank && option.index === candidateIndex);
                       return (
                         <button
-                          key={card.id}
+                          key={`${card.id}-${moveTick}`}
                           type="button"
                           onClick={() => chooseReplacement(rank, candidateIndex)}
                           disabled={!canUse}
-                          className={`min-w-14 px-3 py-2 rounded border text-sm font-semibold ${getCardTone(card)} ${
+                          className={`min-w-14 px-3 py-2 rounded border text-sm font-semibold ${moveTick > 0 ? 'animate-card-shift' : ''} ${getCardTone(card)} ${
                             canUse ? 'ring-2 ring-emerald-500' : ''
                           } disabled:opacity-40`}
                         >

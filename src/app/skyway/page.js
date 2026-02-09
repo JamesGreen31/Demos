@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const SUITS = ['♠', '♥', '♦', '♣'];
 const SUIT_COLORS = {
@@ -224,12 +224,32 @@ export default function SkywayPage() {
   const demosHref = process.env.NODE_ENV === 'production' ? '/Demos' : '/';
   const [state, setState] = useState(() => createInitialState());
   const [selectedStackIndex, setSelectedStackIndex] = useState(null);
+  const [movementTick, setMovementTick] = useState(0);
+  const movementTimeoutRef = useRef(null);
 
   useEffect(() => {
     document.title = 'Skyway';
   }, []);
 
+  useEffect(() => () => {
+    if (movementTimeoutRef.current) {
+      window.clearTimeout(movementTimeoutRef.current);
+    }
+  }, []);
+
   const suitSummary = useMemo(() => summarizeSuits(state.grid), [state.grid]);
+
+  function triggerMovementAnimation() {
+    setMovementTick((value) => value + 1);
+    if (movementTimeoutRef.current) {
+      window.clearTimeout(movementTimeoutRef.current);
+    }
+    movementTimeoutRef.current = window.setTimeout(() => {
+      setMovementTick(0);
+      movementTimeoutRef.current = null;
+    }, 380);
+  }
+
   const allSuitsPassed = suitSummary.every((item) => item.passed);
   const totalScore = suitSummary.reduce((acc, item) => acc + item.length, 0);
 
@@ -271,6 +291,7 @@ export default function SkywayPage() {
         isLastMarket: false,
       });
       setSelectedStackIndex(null);
+      triggerMovementAnimation();
       return;
     }
 
@@ -283,6 +304,7 @@ export default function SkywayPage() {
     });
 
     setSelectedStackIndex(null);
+    triggerMovementAnimation();
   }
 
   function startNewGame() {
@@ -291,6 +313,7 @@ export default function SkywayPage() {
 
     setState(createInitialState());
     setSelectedStackIndex(null);
+    triggerMovementAnimation();
   }
 
   return (
@@ -380,8 +403,8 @@ export default function SkywayPage() {
                     <div className="mt-1 flex min-h-20 flex-wrap gap-2">
                       {stack.map((card) => (
                         <div
-                          key={card.id}
-                          className={`flex h-16 w-12 items-center justify-center rounded-lg border border-slate-300 bg-white text-sm font-bold shadow-sm ${SUIT_COLORS[card.suit]}`}
+                          key={`${card.id}-${movementTick}`}
+                          className={`flex h-16 w-12 items-center justify-center rounded-lg border border-slate-300 bg-white text-sm font-bold shadow-sm ${movementTick > 0 ? 'animate-card-shift' : ''} ${SUIT_COLORS[card.suit]}`}
                         >
                           {formatCard(card)}
                         </div>
@@ -409,8 +432,8 @@ export default function SkywayPage() {
                   <div className="mt-2 flex min-h-16 flex-wrap gap-2">
                     {pile.map((card, idx) => (
                       <div
-                        key={`${card.id}-${idx}`}
-                        className={`flex h-14 w-10 items-center justify-center rounded-md border border-slate-300 bg-white text-xs font-bold shadow-sm ${SUIT_COLORS[card.suit]}`}
+                        key={`${card.id}-${idx}-${movementTick}`}
+                        className={`flex h-14 w-10 items-center justify-center rounded-md border border-slate-300 bg-white text-xs font-bold shadow-sm ${movementTick > 0 ? 'animate-card-shift' : ''} ${SUIT_COLORS[card.suit]}`}
                       >
                         {formatCard(card)}
                       </div>
