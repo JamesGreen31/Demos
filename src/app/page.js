@@ -1,5 +1,5 @@
 const demoLinkClassName =
-  'font-bold rounded-lg text-xl w-56 p-4 flex flex-col justify-center text-black hover:border-gray-300 border-2 border-transparent transition-all duration-300 ease-in-out bg-gradient-to-r from-transparent to-transparent hover:from-[#a8e6ed] hover:to-[#d1f1f5] hover:shadow-lg';
+  'font-bold rounded-lg text-xl w-56 p-4 flex flex-col justify-center text-black border-2 border-transparent bg-gradient-to-r from-transparent to-transparent transform-gpu transition-[transform,box-shadow,border-color,background-image] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-1 hover:border-gray-300 hover:from-[#a8e6ed] hover:to-[#d1f1f5] hover:shadow-xl motion-reduce:transition-none motion-reduce:transform-none';
 
 const previewCardClassName = `${demoLinkClassName} relative overflow-hidden group`;
 
@@ -16,12 +16,12 @@ function DemoCard({ route, title, description, previewImage }) {
   return (
     <a href={getDemoHref(route)} target="_blank" className={previewCardClassName}>
       <div
-        className="absolute inset-0 bg-center bg-cover opacity-30 group-hover:opacity-70 transition-opacity duration-300"
+        className="absolute inset-0 bg-center bg-cover opacity-35 scale-[1.01] group-hover:opacity-70 group-hover:scale-[1.04] transform-gpu transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:transform-none"
         style={{ backgroundImage: `url('${getAssetPath(previewImage)}')` }}
         aria-hidden="true"
       />
       <div
-        className="absolute inset-0 bg-white/55 group-hover:bg-white/25 transition-colors duration-300"
+        className="absolute inset-0 bg-white/55 group-hover:bg-white/25 transition-colors duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
         aria-hidden="true"
       />
       <div className="relative z-10">
