@@ -53,12 +53,6 @@ export default function Home() {
       previewImage: '/fibonacci-heap-dp-preview.svg',
     },
     {
-      route: 'shikaku-dp',
-      title: 'Shikaku DP Demo',
-      description: 'Solve Shikaku puzzles with state-compression DP',
-      previewImage: '/shikaku-dp-preview.svg',
-    },
-    {
       route: 'wasm-vs-js',
       title: 'WASM vs JS',
       description: 'Visualize the speed of WASM with recursive Fibonacci',
@@ -72,6 +66,12 @@ export default function Home() {
       title: 'Minesweeper',
       description: 'Play a classic minesweeper board',
       previewImage: '/minesweeper-preview.svg',
+    },
+    {
+      route: 'shikaku-dp',
+      title: 'Shikaku',
+      description: 'Play Shikaku with random puzzle generation and DP solve assist',
+      previewImage: '/shikaku-dp-preview.svg',
     },
     {
       route: 'meta-tic-tac-toe',
