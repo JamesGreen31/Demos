@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const PRESET_PUZZLES = {
   quickstart: {
@@ -355,7 +355,6 @@ export default function ShikakuDpPage() {
   const demosHref = process.env.NODE_ENV === 'production' ? '/Demos' : '/';
   const [selectedPuzzleKey, setSelectedPuzzleKey] = useState('quickstart');
   const [puzzle, setPuzzle] = useState(PRESET_PUZZLES.quickstart);
-  const [showCandidates, setShowCandidates] = useState(true);
   const [selectedClueIndex, setSelectedClueIndex] = useState(null);
   const [startCell, setStartCell] = useState(null);
   const [endCell, setEndCell] = useState(null);
@@ -367,11 +366,6 @@ export default function ShikakuDpPage() {
   const [isRandomPuzzle, setIsRandomPuzzle] = useState(false);
 
   const { rows, cols, clues } = puzzle;
-
-  const candidateCounts = useMemo(() => {
-    const candidates = buildCandidates(rows, cols, clues);
-    return candidates.map((list) => list.length);
-  }, [rows, cols, clues]);
 
   useEffect(() => {
     setSelectedClueIndex(null);
@@ -530,7 +524,7 @@ export default function ShikakuDpPage() {
     });
     setPlayerRectangles(solvedByClue);
     resetSelectionState();
-    setStatusMessage('Solved with DP. Try generating a new random puzzle or clearing to play again.');
+    setStatusMessage('Solved. Try generating a new random puzzle or clearing to play again.');
   };
 
   const clearBoard = () => {
@@ -565,16 +559,18 @@ export default function ShikakuDpPage() {
         </button>
       </div>
 
-      <h1 className="text-3xl md:text-4xl font-bold text-center">Shikaku Game (DP Solver)</h1>
+      <h1 className="text-3xl md:text-4xl font-bold text-center">Shikaku</h1>
 
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-2xl font-semibold mb-3">What is dynamic programming doing?</h2>
+        <h2 className="text-2xl font-semibold mb-3">About the game</h2>
         <p className="text-slate-700 mb-3">
-          You play by placing rectangles so each clue cell belongs to one rectangle with matching area.
-          The <strong>Solve</strong> button runs a memoized state-compression DP over covered cells + used clues.
+          Shikaku (also called <em>Rectangles</em> or <em>Divide by Squares</em>) is a Japanese logic puzzle where you
+          partition a grid into rectangles. Each given number tells you the exact area of the rectangle that contains
+          that clue.
         </p>
         <p className="text-slate-700">
-          This keeps the game-like flow while still exposing DP ideas through candidate counts and visited states.
+          The puzzle was popularized by puzzle magazines and books in Japan, and later spread worldwide through
+          newspaper puzzle sections and online logic puzzle collections.
         </p>
       </section>
 
@@ -586,7 +582,7 @@ export default function ShikakuDpPage() {
           <li>The selected clue may be anywhere inside the rectangle (not only on a corner).</li>
           <li>Rectangles must match clue area, contain exactly one clue, and not overlap.</li>
           <li>If you click a completed clue, its rectangle is removed so you can redraw it.</li>
-          <li>Use <strong>Solve</strong> for the DP answer, or <strong>Clear Board</strong> to retry.</li>
+          <li>Use <strong>Solve</strong> if you want the board completed automatically, or <strong>Clear Board</strong> to retry.</li>
         </ul>
       </section>
 
@@ -633,14 +629,6 @@ export default function ShikakuDpPage() {
             Generate Random Puzzle
           </button>
 
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={showCandidates}
-              onChange={(event) => setShowCandidates(event.target.checked)}
-            />
-            <span>Show candidate counts</span>
-          </label>
         </div>
 
         <p className="text-sm text-slate-600 mb-3">
@@ -675,25 +663,11 @@ export default function ShikakuDpPage() {
             Rectangles placed: <strong>{completion.placedCount}</strong> / <strong>{clues.length}</strong>
           </p>
           <p>
-            DP states visited: <strong>{statesVisited}</strong>
+            Solver states checked: <strong>{statesVisited}</strong>
           </p>
-          {solveResult === null && statesVisited > 0 && <p>No DP solution found for this puzzle.</p>}
+          {solveResult === null && statesVisited > 0 && <p>No solver solution found for this puzzle.</p>}
           {isWin && <p className="text-green-700 font-semibold">You solved it. Great partition!</p>}
         </div>
-
-        {showCandidates && (
-          <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <h3 className="font-semibold mb-2">Candidate rectangles per clue</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-sm text-slate-700">
-              {clues.map((clue, index) => (
-                <div key={`${clue.row}-${clue.col}-${clue.area}`} className="rounded border border-slate-200 bg-white p-2">
-                  Clue ({clue.row + 1}, {clue.col + 1}) = {clue.area}: <strong>{candidateCounts[index]}</strong>{' '}
-                  candidates
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div
           className="grid gap-1 w-fit"
