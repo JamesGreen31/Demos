@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const PRESET_PUZZLES = {
   quickstart: {
@@ -207,28 +207,43 @@ function getBoardCompletion(rectanglesByClue, rows, cols) {
   };
 }
 
-function getCellStyle({ row, col, assignments, cols, selectedClue, clueAtCell, startCell }) {
+function getRectangleIndexAtCell(row, col, assignments, cols) {
   const index = cellIndex(row, col, cols);
   const cellBit = bitAt(index);
-  const rectangleIndex = assignments.findIndex((rectangle) => rectangle && (rectangle.mask & cellBit) !== 0n);
+  return assignments.findIndex((rectangle) => rectangle && (rectangle.mask & cellBit) !== 0n);
+}
+
+function getCellStyle({ row, col, assignments, cols, selectedClue, clueAtCell, startCell, endCell }) {
+  const rectangleIndex = getRectangleIndexAtCell(row, col, assignments, cols);
 
   const isSelectedClue = selectedClue && selectedClue.row === row && selectedClue.col === col;
   const isStartCell = startCell && startCell.row === row && startCell.col === col;
+  const isEndCell = endCell && endCell.row === row && endCell.col === col;
+  const borderColor = isSelectedClue ? '#16a34a' : isStartCell ? '#2563eb' : isEndCell ? '#ca8a04' : '#334155';
+  const isHighlighted = isSelectedClue || isStartCell || isEndCell;
 
   if (rectangleIndex === -1) {
     return {
       backgroundColor: clueAtCell ? '#dbeafe' : '#f8fafc',
-      borderColor: isSelectedClue ? '#1d4ed8' : isStartCell ? '#f97316' : '#334155',
-      borderWidth: isSelectedClue || isStartCell ? '3px' : '1px',
-      boxShadow: isStartCell ? 'inset 0 0 0 2px rgba(251,146,60,0.45)' : 'none',
+      borderColor,
+      borderWidth: isHighlighted ? '3px' : '1px',
+      boxShadow: isStartCell
+        ? 'inset 0 0 0 2px rgba(37,99,235,0.35)'
+        : isEndCell
+          ? 'inset 0 0 0 2px rgba(202,138,4,0.35)'
+          : 'none',
     };
   }
 
   return {
     backgroundColor: PALETTE[rectangleIndex % PALETTE.length],
-    borderColor: isSelectedClue ? '#1d4ed8' : isStartCell ? '#f97316' : '#334155',
-    borderWidth: isSelectedClue || isStartCell ? '3px' : '1px',
-    boxShadow: isStartCell ? 'inset 0 0 0 2px rgba(251,146,60,0.45)' : 'none',
+    borderColor,
+    borderWidth: isHighlighted ? '3px' : '1px',
+    boxShadow: isStartCell
+      ? 'inset 0 0 0 2px rgba(37,99,235,0.35)'
+      : isEndCell
+        ? 'inset 0 0 0 2px rgba(202,138,4,0.35)'
+        : 'none',
   };
 }
 
@@ -343,15 +358,13 @@ export default function ShikakuDpPage() {
   const [showCandidates, setShowCandidates] = useState(true);
   const [selectedClueIndex, setSelectedClueIndex] = useState(null);
   const [startCell, setStartCell] = useState(null);
-  const [dragCell, setDragCell] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [endCell, setEndCell] = useState(null);
   const [playerRectangles, setPlayerRectangles] = useState([]);
   const [statusMessage, setStatusMessage] = useState('Click any clue to begin placing rectangles.');
   const [statesVisited, setStatesVisited] = useState(0);
   const [solveResult, setSolveResult] = useState(null);
   const [randomSize, setRandomSize] = useState(6);
   const [isRandomPuzzle, setIsRandomPuzzle] = useState(false);
-  const suppressNextClickRef = useRef(false);
 
   const { rows, cols, clues } = puzzle;
 
@@ -363,18 +376,23 @@ export default function ShikakuDpPage() {
   useEffect(() => {
     setSelectedClueIndex(null);
     setStartCell(null);
+    setEndCell(null);
     setPlayerRectangles(Array(clues.length).fill(null));
     setStatusMessage('Puzzle loaded. Select a clue, then choose a start square and an end square.');
     setStatesVisited(0);
     setSolveResult(null);
-    setDragCell(null);
-    setIsDragging(false);
   }, [puzzle, clues.length]);
 
   const completion = getBoardCompletion(playerRectangles, rows, cols);
   const isWin = completion.placedCount === clues.length && completion.allCellsCovered;
 
-  const tryPlaceRectangle = (endCell) => {
+  const resetSelectionState = () => {
+    setSelectedClueIndex(null);
+    setStartCell(null);
+    setEndCell(null);
+  };
+
+  const tryPlaceRectangle = (endCorner) => {
     if (selectedClueIndex === null) {
       setStatusMessage('Select a clue first.');
       return;
@@ -386,28 +404,32 @@ export default function ShikakuDpPage() {
     }
 
     const clue = clues[selectedClueIndex];
-    const proposed = rectangleFromCorners(startCell, endCell, cols);
+    const proposed = rectangleFromCorners(startCell, endCorner, cols);
 
     const clueInside =
       clue.row >= proposed.top && clue.row <= proposed.bottom && clue.col >= proposed.left && clue.col <= proposed.right;
 
     if (!clueInside) {
       setStatusMessage('The selected clue must be inside the rectangle.');
+      resetSelectionState();
       return;
     }
 
     if (proposed.area !== clue.area) {
       setStatusMessage(`That rectangle has area ${proposed.area}. Clue ${clue.area} requires exactly ${clue.area}.`);
+      resetSelectionState();
       return;
     }
 
     if (proposed.area < MIN_RECTANGLE_AREA) {
       setStatusMessage(`Rectangles must be at least area ${MIN_RECTANGLE_AREA}.`);
+      resetSelectionState();
       return;
     }
 
     if (countCluesInside(proposed.top, proposed.left, proposed.bottom, proposed.right, clues) !== 1) {
       setStatusMessage('Rectangles must contain exactly one clue.');
+      resetSelectionState();
       return;
     }
 
@@ -420,6 +442,7 @@ export default function ShikakuDpPage() {
 
     if (overlaps) {
       setStatusMessage('That overlaps another rectangle.');
+      resetSelectionState();
       return;
     }
 
@@ -431,99 +454,64 @@ export default function ShikakuDpPage() {
       };
       return next;
     });
-    setStartCell(null);
+    resetSelectionState();
     setStatusMessage(`Placed rectangle for clue ${clue.area} at (${clue.row + 1}, ${clue.col + 1}).`);
   };
 
   const handleCellClick = (row, col) => {
-    if (suppressNextClickRef.current) {
-      suppressNextClickRef.current = false;
-      return;
-    }
-
     const clueIndex = clues.findIndex((clue) => clue.row === row && clue.col === col);
+    const rectangleIndex = getRectangleIndexAtCell(row, col, playerRectangles, cols);
+    const isShaded = rectangleIndex !== -1;
 
-    if (clueIndex !== -1) {
-      setSelectedClueIndex(clueIndex);
-      setStartCell(null);
-      setStatusMessage(
-        `Clue ${clues[clueIndex].area} selected. Click one corner (start), then the opposite corner (end).`,
-      );
+    if (isShaded) {
+      if (clueIndex !== -1 && playerRectangles[clueIndex]) {
+        setPlayerRectangles((current) => {
+          const next = [...current];
+          next[clueIndex] = null;
+          return next;
+        });
+        setSelectedClueIndex(clueIndex);
+        setStartCell(null);
+        setEndCell(null);
+        setStatusMessage(
+          `Removed rectangle for clue ${clues[clueIndex].area}. Pick a start corner, then an end corner to redraw.`,
+        );
+      }
       return;
     }
 
     if (selectedClueIndex === null) {
+      if (clueIndex !== -1) {
+        setSelectedClueIndex(clueIndex);
+        setStartCell(null);
+        setEndCell(null);
+        setStatusMessage(
+          `Clue ${clues[clueIndex].area} selected. Click one corner (start), then the opposite corner (end).`,
+        );
+        return;
+      }
+
       setStatusMessage('Select a clue first.');
       return;
     }
 
     if (!startCell) {
+      if (clueIndex !== -1 && clueIndex !== selectedClueIndex) {
+        setSelectedClueIndex(clueIndex);
+        setStartCell(null);
+        setEndCell(null);
+        setStatusMessage(`Clue ${clues[clueIndex].area} selected. Now choose the start corner.`);
+        return;
+      }
+
       setStartCell({ row, col });
+      setEndCell(null);
       setStatusMessage(`Start square set at (${row + 1}, ${col + 1}). Now choose the end square.`);
       return;
     }
 
+    setEndCell({ row, col });
     tryPlaceRectangle({ row, col });
-  };
-
-  const getPointerCell = (event) => {
-    const cell = event.target.closest('button[data-row][data-col]');
-    if (!cell) {
-      return null;
-    }
-
-    return {
-      row: Number(cell.dataset.row),
-      col: Number(cell.dataset.col),
-    };
-  };
-
-  const handleBoardPointerDown = (event) => {
-    const pointerCell = getPointerCell(event);
-    if (!pointerCell || selectedClueIndex === null) {
-      return;
-    }
-
-    const clueIndex = clues.findIndex((clue) => clue.row === pointerCell.row && clue.col === pointerCell.col);
-    if (clueIndex !== -1) {
-      return;
-    }
-
-    event.preventDefault();
-    setStartCell(pointerCell);
-    setDragCell(pointerCell);
-    setIsDragging(true);
-    setStatusMessage(`Start square set at (${pointerCell.row + 1}, ${pointerCell.col + 1}). Drag to choose the end square.`);
-  };
-
-  const handleBoardPointerMove = (event) => {
-    if (!isDragging) {
-      return;
-    }
-
-    const pointerCell = getPointerCell(event);
-    if (!pointerCell) {
-      return;
-    }
-
-    if (!dragCell || pointerCell.row !== dragCell.row || pointerCell.col !== dragCell.col) {
-      setDragCell(pointerCell);
-    }
-  };
-
-  const handleBoardPointerUp = (event) => {
-    if (!isDragging) {
-      return;
-    }
-
-    const pointerCell = getPointerCell(event) || dragCell;
-    setIsDragging(false);
-    setDragCell(null);
-
-    if (pointerCell) {
-      suppressNextClickRef.current = true;
-      tryPlaceRectangle(pointerCell);
-    }
   };
 
   const solveBoard = () => {
@@ -541,7 +529,7 @@ export default function ShikakuDpPage() {
       solvedByClue[rectangle.clueIndex] = rectangle;
     });
     setPlayerRectangles(solvedByClue);
-    setStartCell(null);
+    resetSelectionState();
     setStatusMessage('Solved with DP. Try generating a new random puzzle or clearing to play again.');
   };
 
@@ -549,16 +537,8 @@ export default function ShikakuDpPage() {
     setPlayerRectangles(Array(clues.length).fill(null));
     setSelectedClueIndex(null);
     setStartCell(null);
-    setDragCell(null);
-    setIsDragging(false);
+    setEndCell(null);
     setStatusMessage('Board cleared. Select a clue to continue.');
-  };
-
-  const reloadPuzzle = () => {
-    clearBoard();
-    setStatesVisited(0);
-    setSolveResult(null);
-    setStatusMessage('Puzzle reloaded. Select a clue to continue.');
   };
 
   const loadPreset = (key) => {
@@ -602,9 +582,10 @@ export default function ShikakuDpPage() {
         <h2 className="text-2xl font-semibold mb-3">How to play</h2>
         <ul className="list-disc pl-5 space-y-2 text-slate-700">
           <li>Select a clue by clicking its numbered cell.</li>
-          <li>Pick a start square, then pick an end square to form a rectangle.</li>
+          <li>Pick a start corner (blue), then pick an end corner (gold) to form a rectangle.</li>
           <li>The selected clue may be anywhere inside the rectangle (not only on a corner).</li>
           <li>Rectangles must match clue area, contain exactly one clue, and not overlap.</li>
+          <li>If you click a completed clue, its rectangle is removed so you can redraw it.</li>
           <li>Use <strong>Solve</strong> for the DP answer, or <strong>Clear Board</strong> to retry.</li>
         </ul>
       </section>
@@ -677,13 +658,6 @@ export default function ShikakuDpPage() {
           </button>
           <button
             type="button"
-            onClick={reloadPuzzle}
-            className="px-4 py-2 rounded bg-emerald-700 text-white hover:bg-emerald-600"
-          >
-            Reload Puzzle
-          </button>
-          <button
-            type="button"
             onClick={solveBoard}
             className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-500"
           >
@@ -723,10 +697,6 @@ export default function ShikakuDpPage() {
 
         <div
           className="grid gap-1 w-fit"
-          onPointerDown={handleBoardPointerDown}
-          onPointerMove={handleBoardPointerMove}
-          onPointerUp={handleBoardPointerUp}
-          onPointerLeave={handleBoardPointerUp}
           style={{
             gridTemplateColumns: `repeat(${cols}, minmax(0, 56px))`,
           }}
@@ -744,6 +714,7 @@ export default function ShikakuDpPage() {
                 selectedClue,
                 clueAtCell,
                 startCell,
+                endCell,
               });
 
               return (
