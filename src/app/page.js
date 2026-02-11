@@ -60,6 +60,16 @@ export default function Home() {
     },
   ];
 
+
+  const ckplaceTools = [
+    {
+      route: 'ckplace-tools',
+      title: 'ARC Compression Tool',
+      description: 'Upload item CSVs and optimize inventory compression by stack and value loss',
+      previewImage: '/arc-compression-preview.svg',
+    },
+  ];
+
   const ckplaceGames = [
     {
       route: 'minesweeper',
@@ -116,6 +126,16 @@ export default function Home() {
         <div className="flex flex-wrap gap-3 justify-center md:justify-start">
           {demoPackages.map((demo) => (
             <DemoCard key={demo.route} {...demo} />
+          ))}
+        </div>
+      </section>
+
+
+      <section className="w-full max-w-6xl">
+        <h2 className="text-2xl font-semibold mb-3">Ckplace Tools</h2>
+        <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+          {ckplaceTools.map((tool) => (
+            <DemoCard key={tool.route} {...tool} />
           ))}
         </div>
       </section>
