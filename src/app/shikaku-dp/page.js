@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-const PUZZLES = {
+const PRESET_PUZZLES = {
   quickstart: {
     name: 'Quickstart 4×4',
     rows: 4,
@@ -36,6 +36,10 @@ function cellIndex(row, col, cols) {
   return row * cols + col;
 }
 
+function bitAt(index) {
+  return 1n << BigInt(index);
+}
+
 function factorPairs(value) {
   const pairs = [];
   for (let height = 1; height <= value; height += 1) {
@@ -47,10 +51,10 @@ function factorPairs(value) {
 }
 
 function buildRectangleMask(top, left, height, width, cols) {
-  let mask = 0;
+  let mask = 0n;
   for (let row = top; row < top + height; row += 1) {
     for (let col = left; col < left + width; col += 1) {
-      mask |= 1 << cellIndex(row, col, cols);
+      mask |= bitAt(cellIndex(row, col, cols));
     }
   }
   return mask;
@@ -100,7 +104,7 @@ function buildCandidates(rows, cols, clues) {
 
 function solveShikakuDP(rows, cols, clues) {
   const totalCells = rows * cols;
-  const fullMask = (1 << totalCells) - 1;
+  const fullMask = (1n << BigInt(totalCells)) - 1n;
   const candidatesByClue = buildCandidates(rows, cols, clues);
   const candidatesByCell = Array.from({ length: totalCells }, () => []);
 
@@ -116,16 +120,17 @@ function solveShikakuDP(rows, cols, clues) {
 
   const memo = new Map();
   let statesVisited = 0;
+  const allCluesUsedMask = (1n << BigInt(clues.length)) - 1n;
 
   function dfs(coveredMask, usedCluesMask) {
     statesVisited += 1;
-    const key = `${coveredMask}|${usedCluesMask}`;
+    const key = `${coveredMask.toString()}|${usedCluesMask.toString()}`;
     if (memo.has(key)) {
       return memo.get(key);
     }
 
     if (coveredMask === fullMask) {
-      const solved = usedCluesMask === (1 << clues.length) - 1;
+      const solved = usedCluesMask === allCluesUsedMask;
       const result = solved ? [] : null;
       memo.set(key, result);
       return result;
@@ -133,7 +138,7 @@ function solveShikakuDP(rows, cols, clues) {
 
     let firstOpenCell = -1;
     for (let index = 0; index < totalCells; index += 1) {
-      if ((coveredMask & (1 << index)) === 0) {
+      if ((coveredMask & bitAt(index)) === 0n) {
         firstOpenCell = index;
         break;
       }
@@ -145,8 +150,8 @@ function solveShikakuDP(rows, cols, clues) {
     }
 
     for (const candidate of candidatesByCell[firstOpenCell]) {
-      const clueBit = 1 << candidate.clueIndex;
-      if ((usedCluesMask & clueBit) !== 0 || (coveredMask & candidate.mask) !== 0) {
+      const clueBit = bitAt(candidate.clueIndex);
+      if ((usedCluesMask & clueBit) !== 0n || (coveredMask & candidate.mask) !== 0n) {
         continue;
       }
 
@@ -162,7 +167,7 @@ function solveShikakuDP(rows, cols, clues) {
     return null;
   }
 
-  const solution = dfs(0, 0);
+  const solution = dfs(0n, 0n);
 
   return {
     solution,
@@ -171,11 +176,11 @@ function solveShikakuDP(rows, cols, clues) {
   };
 }
 
-function rectangleForClue(clue, targetRow, targetCol, cols) {
-  const top = Math.min(clue.row, targetRow);
-  const left = Math.min(clue.col, targetCol);
-  const bottom = Math.max(clue.row, targetRow);
-  const right = Math.max(clue.col, targetCol);
+function rectangleFromCorners(start, end, cols) {
+  const top = Math.min(start.row, end.row);
+  const left = Math.min(start.col, end.col);
+  const bottom = Math.max(start.row, end.row);
+  const right = Math.max(start.col, end.col);
   const height = bottom - top + 1;
   const width = right - left + 1;
 
@@ -190,8 +195,8 @@ function rectangleForClue(clue, targetRow, targetCol, cols) {
 }
 
 function getBoardCompletion(rectanglesByClue, rows, cols) {
-  const fullMask = (1 << (rows * cols)) - 1;
-  const mergedMask = rectanglesByClue.reduce((mask, rectangle) => (rectangle ? mask | rectangle.mask : mask), 0);
+  const fullMask = (1n << BigInt(rows * cols)) - 1n;
+  const mergedMask = rectanglesByClue.reduce((mask, rectangle) => (rectangle ? mask | rectangle.mask : mask), 0n);
   const placedCount = rectanglesByClue.filter(Boolean).length;
 
   return {
@@ -200,58 +205,192 @@ function getBoardCompletion(rectanglesByClue, rows, cols) {
   };
 }
 
-function getCellStyle(row, col, assignments, cols, selectedClue, clueAtCell) {
+function getCellStyle({ row, col, assignments, cols, selectedClue, clueAtCell, startCell }) {
   const index = cellIndex(row, col, cols);
-  const rectangleIndex = assignments.findIndex((rectangle) => rectangle && (rectangle.mask & (1 << index)) !== 0);
+  const cellBit = bitAt(index);
+  const rectangleIndex = assignments.findIndex((rectangle) => rectangle && (rectangle.mask & cellBit) !== 0n);
 
-  const borderColor = selectedClue && selectedClue.row === row && selectedClue.col === col ? '#1d4ed8' : '#334155';
+  const isSelectedClue = selectedClue && selectedClue.row === row && selectedClue.col === col;
+  const isStartCell = startCell && startCell.row === row && startCell.col === col;
 
   if (rectangleIndex === -1) {
     return {
       backgroundColor: clueAtCell ? '#dbeafe' : '#f8fafc',
-      borderColor,
+      borderColor: isSelectedClue ? '#1d4ed8' : isStartCell ? '#f97316' : '#334155',
+      borderWidth: isSelectedClue || isStartCell ? '3px' : '1px',
+      boxShadow: isStartCell ? 'inset 0 0 0 2px rgba(251,146,60,0.45)' : 'none',
     };
   }
 
   return {
     backgroundColor: PALETTE[rectangleIndex % PALETTE.length],
-    borderColor,
+    borderColor: isSelectedClue ? '#1d4ed8' : isStartCell ? '#f97316' : '#334155',
+    borderWidth: isSelectedClue || isStartCell ? '3px' : '1px',
+    boxShadow: isStartCell ? 'inset 0 0 0 2px rgba(251,146,60,0.45)' : 'none',
+  };
+}
+
+function shuffle(items) {
+  const next = [...items];
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+  return next;
+}
+
+function generateRandomPartition(rows, cols) {
+  const occupied = Array.from({ length: rows }, () => Array(cols).fill(false));
+  const rectangles = [];
+
+  function firstUnoccupied() {
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        if (!occupied[row][col]) {
+          return { row, col };
+        }
+      }
+    }
+    return null;
+  }
+
+  function canPlace(top, left, height, width) {
+    if (top + height > rows || left + width > cols) {
+      return false;
+    }
+    for (let row = top; row < top + height; row += 1) {
+      for (let col = left; col < left + width; col += 1) {
+        if (occupied[row][col]) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function mark(top, left, height, width, value) {
+    for (let row = top; row < top + height; row += 1) {
+      for (let col = left; col < left + width; col += 1) {
+        occupied[row][col] = value;
+      }
+    }
+  }
+
+  function backtrack() {
+    const nextCell = firstUnoccupied();
+    if (!nextCell) {
+      return true;
+    }
+
+    const { row, col } = nextCell;
+    const options = [];
+    for (let height = 1; height <= Math.min(4, rows - row); height += 1) {
+      for (let width = 1; width <= Math.min(4, cols - col); width += 1) {
+        if (canPlace(row, col, height, width)) {
+          options.push({ top: row, left: col, height, width, area: height * width });
+        }
+      }
+    }
+
+    const prioritized = shuffle(options).sort((a, b) => {
+      const aScore = Math.abs(a.area - 4);
+      const bScore = Math.abs(b.area - 4);
+      return aScore - bScore;
+    });
+
+    for (const option of prioritized) {
+      mark(option.top, option.left, option.height, option.width, true);
+      rectangles.push(option);
+      if (backtrack()) {
+        return true;
+      }
+      rectangles.pop();
+      mark(option.top, option.left, option.height, option.width, false);
+    }
+
+    return false;
+  }
+
+  if (!backtrack()) {
+    throw new Error('Failed to generate random puzzle partition.');
+  }
+
+  return rectangles;
+}
+
+function buildRandomPuzzle(size) {
+  const rows = size;
+  const cols = size;
+  const partition = generateRandomPartition(rows, cols);
+
+  const clues = partition.map((rectangle) => {
+    const clueRow = rectangle.top + Math.floor(Math.random() * rectangle.height);
+    const clueCol = rectangle.left + Math.floor(Math.random() * rectangle.width);
+    return { row: clueRow, col: clueCol, area: rectangle.area };
+  });
+
+  return {
+    name: `Random ${rows}×${cols}`,
+    rows,
+    cols,
+    clues: shuffle(clues),
   };
 }
 
 export default function ShikakuDpPage() {
   const demosHref = process.env.NODE_ENV === 'production' ? '/Demos' : '/';
-  const [selectedPuzzle, setSelectedPuzzle] = useState('quickstart');
+  const [selectedPuzzleKey, setSelectedPuzzleKey] = useState('quickstart');
+  const [puzzle, setPuzzle] = useState(PRESET_PUZZLES.quickstart);
   const [showCandidates, setShowCandidates] = useState(true);
   const [selectedClueIndex, setSelectedClueIndex] = useState(null);
+  const [startCell, setStartCell] = useState(null);
   const [playerRectangles, setPlayerRectangles] = useState([]);
   const [statusMessage, setStatusMessage] = useState('Click any clue to begin placing rectangles.');
+  const [statesVisited, setStatesVisited] = useState(0);
+  const [solveResult, setSolveResult] = useState(null);
+  const [randomSize, setRandomSize] = useState(6);
+  const [isRandomPuzzle, setIsRandomPuzzle] = useState(false);
 
-  const puzzle = PUZZLES[selectedPuzzle];
   const { rows, cols, clues } = puzzle;
 
-  const { solution, statesVisited, candidateCounts } = useMemo(() => {
-    const solved = solveShikakuDP(rows, cols, clues);
-    return solved;
+  const candidateCounts = useMemo(() => {
+    const candidates = buildCandidates(rows, cols, clues);
+    return candidates.map((list) => list.length);
   }, [rows, cols, clues]);
 
   useEffect(() => {
     setSelectedClueIndex(null);
+    setStartCell(null);
     setPlayerRectangles(Array(clues.length).fill(null));
-    setStatusMessage('Puzzle loaded. Select a clue, then click another cell to place its rectangle.');
-  }, [selectedPuzzle, clues.length]);
+    setStatusMessage('Puzzle loaded. Select a clue, then choose a start square and an end square.');
+    setStatesVisited(0);
+    setSolveResult(null);
+  }, [puzzle, clues.length]);
 
   const completion = getBoardCompletion(playerRectangles, rows, cols);
   const isWin = completion.placedCount === clues.length && completion.allCellsCovered;
 
-  const tryPlaceRectangle = (targetRow, targetCol) => {
+  const tryPlaceRectangle = (endCell) => {
     if (selectedClueIndex === null) {
       setStatusMessage('Select a clue first.');
       return;
     }
 
+    if (!startCell) {
+      setStatusMessage('Choose a start square first.');
+      return;
+    }
+
     const clue = clues[selectedClueIndex];
-    const proposed = rectangleForClue(clue, targetRow, targetCol, cols);
+    const proposed = rectangleFromCorners(startCell, endCell, cols);
+
+    const clueInside =
+      clue.row >= proposed.top && clue.row <= proposed.bottom && clue.col >= proposed.left && clue.col <= proposed.right;
+
+    if (!clueInside) {
+      setStatusMessage('The selected clue must be inside the rectangle.');
+      return;
+    }
 
     if (proposed.area !== clue.area) {
       setStatusMessage(`That rectangle has area ${proposed.area}. Clue ${clue.area} requires exactly ${clue.area}.`);
@@ -267,7 +406,7 @@ export default function ShikakuDpPage() {
       if (!rectangle || index === selectedClueIndex) {
         return false;
       }
-      return (rectangle.mask & proposed.mask) !== 0;
+      return (rectangle.mask & proposed.mask) !== 0n;
     });
 
     if (overlaps) {
@@ -283,6 +422,7 @@ export default function ShikakuDpPage() {
       };
       return next;
     });
+    setStartCell(null);
     setStatusMessage(`Placed rectangle for clue ${clue.area} at (${clue.row + 1}, ${clue.col + 1}).`);
   };
 
@@ -291,31 +431,63 @@ export default function ShikakuDpPage() {
 
     if (clueIndex !== -1) {
       setSelectedClueIndex(clueIndex);
-      setStatusMessage(`Clue ${clues[clueIndex].area} selected. Click a target cell to size the rectangle.`);
+      setStartCell(null);
+      setStatusMessage(
+        `Clue ${clues[clueIndex].area} selected. Click one corner (start), then the opposite corner (end).`,
+      );
       return;
     }
 
-    tryPlaceRectangle(row, col);
+    if (selectedClueIndex === null) {
+      setStatusMessage('Select a clue first.');
+      return;
+    }
+
+    if (!startCell) {
+      setStartCell({ row, col });
+      setStatusMessage(`Start square set at (${row + 1}, ${col + 1}). Now choose the end square.`);
+      return;
+    }
+
+    tryPlaceRectangle({ row, col });
   };
 
   const solveBoard = () => {
-    if (!solution) {
+    const solved = solveShikakuDP(rows, cols, clues);
+    setStatesVisited(solved.statesVisited);
+    setSolveResult(solved.solution);
+
+    if (!solved.solution) {
       setStatusMessage('No solution exists for this puzzle.');
       return;
     }
 
     const solvedByClue = Array(clues.length).fill(null);
-    solution.forEach((rectangle) => {
+    solved.solution.forEach((rectangle) => {
       solvedByClue[rectangle.clueIndex] = rectangle;
     });
     setPlayerRectangles(solvedByClue);
-    setStatusMessage('Solved with DP. Try switching puzzles or clearing to play again.');
+    setStartCell(null);
+    setStatusMessage('Solved with DP. Try generating a new random puzzle or clearing to play again.');
   };
 
   const clearBoard = () => {
     setPlayerRectangles(Array(clues.length).fill(null));
     setSelectedClueIndex(null);
+    setStartCell(null);
     setStatusMessage('Board cleared. Select a clue to continue.');
+  };
+
+  const loadPreset = (key) => {
+    setSelectedPuzzleKey(key);
+    setPuzzle(PRESET_PUZZLES[key]);
+    setIsRandomPuzzle(false);
+  };
+
+  const loadRandomPuzzle = () => {
+    const next = buildRandomPuzzle(randomSize);
+    setPuzzle(next);
+    setIsRandomPuzzle(true);
   };
 
   return (
@@ -339,7 +511,7 @@ export default function ShikakuDpPage() {
           The <strong>Solve</strong> button runs a memoized state-compression DP over covered cells + used clues.
         </p>
         <p className="text-slate-700">
-          This keeps the demo game-like while still exposing DP ideas through candidate counts and visited states.
+          This keeps the game-like flow while still exposing DP ideas through candidate counts and visited states.
         </p>
       </section>
 
@@ -347,7 +519,8 @@ export default function ShikakuDpPage() {
         <h2 className="text-2xl font-semibold mb-3">How to play</h2>
         <ul className="list-disc pl-5 space-y-2 text-slate-700">
           <li>Select a clue by clicking its numbered cell.</li>
-          <li>Click any other cell to form a rectangle between the clue and that target.</li>
+          <li>Pick a start square, then pick an end square to form a rectangle.</li>
+          <li>The selected clue may be anywhere inside the rectangle (not only on a corner).</li>
           <li>Rectangles must match clue area, contain exactly one clue, and not overlap.</li>
           <li>Use <strong>Solve</strong> for the DP answer, or <strong>Clear Board</strong> to retry.</li>
         </ul>
@@ -357,20 +530,44 @@ export default function ShikakuDpPage() {
         <h2 className="text-2xl font-semibold mb-4">Controls</h2>
         <div className="flex flex-wrap items-center gap-3 mb-3">
           <label className="flex items-center gap-2">
-            <span className="font-semibold">Puzzle</span>
+            <span className="font-semibold">Preset</span>
             <select
-              value={selectedPuzzle}
-              onChange={(event) => setSelectedPuzzle(event.target.value)}
+              value={selectedPuzzleKey}
+              onChange={(event) => loadPreset(event.target.value)}
               className="border border-slate-300 rounded px-3 py-2"
               aria-label="Puzzle preset"
             >
-              {Object.entries(PUZZLES).map(([key, value]) => (
+              {Object.entries(PRESET_PUZZLES).map(([key, value]) => (
                 <option key={key} value={key}>
                   {value.name}
                 </option>
               ))}
             </select>
           </label>
+
+          <label className="flex items-center gap-2">
+            <span className="font-semibold">Random size</span>
+            <select
+              value={randomSize}
+              onChange={(event) => setRandomSize(Number(event.target.value))}
+              className="border border-slate-300 rounded px-3 py-2"
+              aria-label="Random puzzle size"
+            >
+              {Array.from({ length: 6 }, (_, index) => index + 4).map((size) => (
+                <option key={size} value={size}>
+                  {size}×{size}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            type="button"
+            onClick={loadRandomPuzzle}
+            className="px-4 py-2 rounded bg-purple-700 text-white hover:bg-purple-600"
+          >
+            Generate Random Puzzle
+          </button>
 
           <label className="flex items-center gap-2">
             <input
@@ -381,6 +578,11 @@ export default function ShikakuDpPage() {
             <span>Show candidate counts</span>
           </label>
         </div>
+
+        <p className="text-sm text-slate-600 mb-3">
+          Current puzzle: <strong>{puzzle.name}</strong>
+          {isRandomPuzzle && ` (${rows}×${cols})`}
+        </p>
 
         <div className="flex flex-wrap gap-3">
           <button
@@ -411,6 +613,7 @@ export default function ShikakuDpPage() {
           <p>
             DP states visited: <strong>{statesVisited}</strong>
           </p>
+          {solveResult === null && statesVisited > 0 && <p>No DP solution found for this puzzle.</p>}
           {isWin && <p className="text-green-700 font-semibold">You solved it. Great partition!</p>}
         </div>
 
@@ -439,7 +642,15 @@ export default function ShikakuDpPage() {
               const clueIndex = clues.findIndex((item) => item.row === row && item.col === col);
               const clueAtCell = clueIndex !== -1 ? clues[clueIndex] : null;
               const selectedClue = selectedClueIndex === null ? null : clues[selectedClueIndex];
-              const style = getCellStyle(row, col, playerRectangles, cols, selectedClue, clueAtCell);
+              const style = getCellStyle({
+                row,
+                col,
+                assignments: playerRectangles,
+                cols,
+                selectedClue,
+                clueAtCell,
+                startCell,
+              });
 
               return (
                 <button
