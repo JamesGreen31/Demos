@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const PRESET_PUZZLES = {
   quickstart: {
@@ -31,6 +31,8 @@ const PRESET_PUZZLES = {
 };
 
 const PALETTE = ['#fecaca', '#fde68a', '#bfdbfe', '#bbf7d0', '#ddd6fe', '#fbcfe8', '#c7d2fe', '#fdba74'];
+const MIN_RECTANGLE_AREA = 2;
+const MAX_RECTANGLE_EDGE = 4;
 
 function cellIndex(row, col, cols) {
   return row * cols + col;
@@ -284,19 +286,16 @@ function generateRandomPartition(rows, cols) {
 
     const { row, col } = nextCell;
     const options = [];
-    for (let height = 1; height <= Math.min(4, rows - row); height += 1) {
-      for (let width = 1; width <= Math.min(4, cols - col); width += 1) {
-        if (canPlace(row, col, height, width)) {
+    for (let height = 1; height <= Math.min(MAX_RECTANGLE_EDGE, rows - row); height += 1) {
+      for (let width = 1; width <= Math.min(MAX_RECTANGLE_EDGE, cols - col); width += 1) {
+        const area = height * width;
+        if (area >= MIN_RECTANGLE_AREA && canPlace(row, col, height, width)) {
           options.push({ top: row, left: col, height, width, area: height * width });
         }
       }
     }
 
-    const prioritized = shuffle(options).sort((a, b) => {
-      const aScore = Math.abs(a.area - 4);
-      const bScore = Math.abs(b.area - 4);
-      return aScore - bScore;
-    });
+    const prioritized = shuffle(options);
 
     for (const option of prioritized) {
       mark(option.top, option.left, option.height, option.width, true);
@@ -344,12 +343,15 @@ export default function ShikakuDpPage() {
   const [showCandidates, setShowCandidates] = useState(true);
   const [selectedClueIndex, setSelectedClueIndex] = useState(null);
   const [startCell, setStartCell] = useState(null);
+  const [dragCell, setDragCell] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [playerRectangles, setPlayerRectangles] = useState([]);
   const [statusMessage, setStatusMessage] = useState('Click any clue to begin placing rectangles.');
   const [statesVisited, setStatesVisited] = useState(0);
   const [solveResult, setSolveResult] = useState(null);
   const [randomSize, setRandomSize] = useState(6);
   const [isRandomPuzzle, setIsRandomPuzzle] = useState(false);
+  const suppressNextClickRef = useRef(false);
 
   const { rows, cols, clues } = puzzle;
 
@@ -365,6 +367,8 @@ export default function ShikakuDpPage() {
     setStatusMessage('Puzzle loaded. Select a clue, then choose a start square and an end square.');
     setStatesVisited(0);
     setSolveResult(null);
+    setDragCell(null);
+    setIsDragging(false);
   }, [puzzle, clues.length]);
 
   const completion = getBoardCompletion(playerRectangles, rows, cols);
@@ -394,6 +398,11 @@ export default function ShikakuDpPage() {
 
     if (proposed.area !== clue.area) {
       setStatusMessage(`That rectangle has area ${proposed.area}. Clue ${clue.area} requires exactly ${clue.area}.`);
+      return;
+    }
+
+    if (proposed.area < MIN_RECTANGLE_AREA) {
+      setStatusMessage(`Rectangles must be at least area ${MIN_RECTANGLE_AREA}.`);
       return;
     }
 
@@ -427,6 +436,11 @@ export default function ShikakuDpPage() {
   };
 
   const handleCellClick = (row, col) => {
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false;
+      return;
+    }
+
     const clueIndex = clues.findIndex((clue) => clue.row === row && clue.col === col);
 
     if (clueIndex !== -1) {
@@ -452,6 +466,66 @@ export default function ShikakuDpPage() {
     tryPlaceRectangle({ row, col });
   };
 
+  const getPointerCell = (event) => {
+    const cell = event.target.closest('button[data-row][data-col]');
+    if (!cell) {
+      return null;
+    }
+
+    return {
+      row: Number(cell.dataset.row),
+      col: Number(cell.dataset.col),
+    };
+  };
+
+  const handleBoardPointerDown = (event) => {
+    const pointerCell = getPointerCell(event);
+    if (!pointerCell || selectedClueIndex === null) {
+      return;
+    }
+
+    const clueIndex = clues.findIndex((clue) => clue.row === pointerCell.row && clue.col === pointerCell.col);
+    if (clueIndex !== -1) {
+      return;
+    }
+
+    event.preventDefault();
+    setStartCell(pointerCell);
+    setDragCell(pointerCell);
+    setIsDragging(true);
+    setStatusMessage(`Start square set at (${pointerCell.row + 1}, ${pointerCell.col + 1}). Drag to choose the end square.`);
+  };
+
+  const handleBoardPointerMove = (event) => {
+    if (!isDragging) {
+      return;
+    }
+
+    const pointerCell = getPointerCell(event);
+    if (!pointerCell) {
+      return;
+    }
+
+    if (!dragCell || pointerCell.row !== dragCell.row || pointerCell.col !== dragCell.col) {
+      setDragCell(pointerCell);
+    }
+  };
+
+  const handleBoardPointerUp = (event) => {
+    if (!isDragging) {
+      return;
+    }
+
+    const pointerCell = getPointerCell(event) || dragCell;
+    setIsDragging(false);
+    setDragCell(null);
+
+    if (pointerCell) {
+      suppressNextClickRef.current = true;
+      tryPlaceRectangle(pointerCell);
+    }
+  };
+
   const solveBoard = () => {
     const solved = solveShikakuDP(rows, cols, clues);
     setStatesVisited(solved.statesVisited);
@@ -475,7 +549,16 @@ export default function ShikakuDpPage() {
     setPlayerRectangles(Array(clues.length).fill(null));
     setSelectedClueIndex(null);
     setStartCell(null);
+    setDragCell(null);
+    setIsDragging(false);
     setStatusMessage('Board cleared. Select a clue to continue.');
+  };
+
+  const reloadPuzzle = () => {
+    clearBoard();
+    setStatesVisited(0);
+    setSolveResult(null);
+    setStatusMessage('Puzzle reloaded. Select a clue to continue.');
   };
 
   const loadPreset = (key) => {
@@ -594,6 +677,13 @@ export default function ShikakuDpPage() {
           </button>
           <button
             type="button"
+            onClick={reloadPuzzle}
+            className="px-4 py-2 rounded bg-emerald-700 text-white hover:bg-emerald-600"
+          >
+            Reload Puzzle
+          </button>
+          <button
+            type="button"
             onClick={solveBoard}
             className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-500"
           >
@@ -633,6 +723,10 @@ export default function ShikakuDpPage() {
 
         <div
           className="grid gap-1 w-fit"
+          onPointerDown={handleBoardPointerDown}
+          onPointerMove={handleBoardPointerMove}
+          onPointerUp={handleBoardPointerUp}
+          onPointerLeave={handleBoardPointerUp}
           style={{
             gridTemplateColumns: `repeat(${cols}, minmax(0, 56px))`,
           }}
@@ -657,6 +751,8 @@ export default function ShikakuDpPage() {
                   key={`${row}-${col}`}
                   type="button"
                   onClick={() => handleCellClick(row, col)}
+                  data-row={row}
+                  data-col={col}
                   className="h-14 w-14 border rounded flex items-center justify-center font-semibold text-slate-800"
                   style={style}
                   aria-label={`Cell ${row + 1}, ${col + 1}`}
