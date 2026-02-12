@@ -260,6 +260,29 @@ function applyAction(action, inventory) {
   return next;
 }
 
+function getMaxRepeats(action, inventory) {
+  if (action.type === 'craft') {
+    return action.inputs.reduce((minRepeats, input) => {
+      const available = inventory.get(normalizeName(input.name)) ?? 0;
+      return Math.min(minRepeats, Math.floor(available / input.qty));
+    }, Number.POSITIVE_INFINITY);
+  }
+
+  if (action.type === 'recycle') {
+    return inventory.get(action.itemKey) ?? 0;
+  }
+
+  return 0;
+}
+
+function applyActionMultiple(action, inventory, repeatCount) {
+  let next = new Map(inventory);
+  for (let index = 0; index < repeatCount; index += 1) {
+    next = applyAction(action, next);
+  }
+  return next;
+}
+
 function runCompression(initialInventory, stackByItem, actions, options = {}) {
   const {
     maxCost = Number.POSITIVE_INFINITY,
@@ -269,11 +292,24 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
 
   const inventory = new Map(initialInventory);
   const operations = [];
+  const seenStates = new Set();
   let totalCost = 0;
   let iterationGuard = 0;
+  let setupCraftStreak = 0;
 
   while (iterationGuard < 3000) {
     iterationGuard += 1;
+
+    const stateKey = [...inventory.entries()]
+      .filter(([, qty]) => qty > 0)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, qty]) => `${key}:${qty}`)
+      .join('|');
+
+    if (seenStates.has(stateKey)) {
+      break;
+    }
+    seenStates.add(stateKey);
 
     const currentStacks = getTotalStacks(inventory, stackByItem);
     const candidates = actions
@@ -281,37 +317,70 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
       .filter((action) => totalCost + action.cost <= maxCost)
       .filter((action) => canApplyAction(action, inventory))
       .map((action) => {
-        const nextInventory = applyAction(action, inventory);
-        const nextStacks = getTotalStacks(nextInventory, stackByItem);
-        const stackDelta = nextStacks - currentStacks;
-        return {
-          ...action,
-          stackDelta,
-        };
+        const maxRepeats = Math.min(getMaxRepeats(action, inventory), 250);
+        if (!Number.isFinite(maxRepeats) || maxRepeats <= 0) return null;
+
+        let bestCandidate = null;
+
+        for (let repeatCount = 1; repeatCount <= maxRepeats; repeatCount += 1) {
+          const totalActionCost = action.cost * repeatCount;
+          if (totalCost + totalActionCost > maxCost) break;
+
+          const nextInventory = applyActionMultiple(action, inventory, repeatCount);
+          const nextStacks = getTotalStacks(nextInventory, stackByItem);
+          const stackDelta = nextStacks - currentStacks;
+
+          if (stackDelta > 0 && action.type !== 'craft') continue;
+
+          if (!bestCandidate || stackDelta < bestCandidate.stackDelta || (stackDelta === bestCandidate.stackDelta && totalActionCost < bestCandidate.totalActionCost)) {
+            bestCandidate = {
+              ...action,
+              stackDelta,
+              repeatCount,
+              totalActionCost,
+            };
+          }
+        }
+
+        return bestCandidate;
       })
-      .filter((action) => action.stackDelta < 0);
+      .filter(Boolean)
+      .filter((action) => action.stackDelta < 0 || action.type === 'craft');
 
     if (!candidates.length) {
       break;
     }
 
-    const sorted = [...candidates].sort((a, b) => {
+    const hasReducingCandidate = candidates.some((action) => action.stackDelta < 0);
+    const eligibleCandidates = hasReducingCandidate ? candidates.filter((action) => action.stackDelta < 0) : candidates;
+
+    const sorted = [...eligibleCandidates].sort((a, b) => {
       if (prioritizeValueLoss) {
         if (a.valueLossPercent !== b.valueLossPercent) return a.valueLossPercent - b.valueLossPercent;
-        if (a.cost !== b.cost) return a.cost - b.cost;
+        if (a.totalActionCost !== b.totalActionCost) return a.totalActionCost - b.totalActionCost;
         return a.stackDelta - b.stackDelta;
       }
 
       if (a.stackDelta !== b.stackDelta) return a.stackDelta - b.stackDelta;
-      if (a.cost !== b.cost) return a.cost - b.cost;
+      if (a.totalActionCost !== b.totalActionCost) return a.totalActionCost - b.totalActionCost;
       return a.valueLossPercent - b.valueLossPercent;
     });
 
     const chosen = sorted[0];
-    operations.push(chosen);
-    totalCost += chosen.cost;
 
-    const next = applyAction(chosen, inventory);
+    if (chosen.type === 'craft' && chosen.stackDelta >= 0) {
+      setupCraftStreak += 1;
+      if (setupCraftStreak > 18) {
+        break;
+      }
+    } else {
+      setupCraftStreak = 0;
+    }
+
+    operations.push(chosen);
+    totalCost += chosen.totalActionCost;
+
+    const next = applyActionMultiple(chosen, inventory, chosen.repeatCount);
     inventory.clear();
     for (const [key, value] of next.entries()) {
       inventory.set(key, value);
@@ -319,6 +388,12 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
   }
 
   return { inventory, operations, totalCost };
+}
+
+
+function formatOperationStep(action, index) {
+  const typeLabel = action.type === 'craft' ? 'Craft' : 'Recycle';
+  return `${index + 1}. ${typeLabel} · ${action.label.replace(/^Craft\s|^Recycle\s/, '')} ×${action.repeatCount} (stack Δ ${action.stackDelta}, cost ${action.totalActionCost.toFixed(0)}, value loss ${action.valueLossPercent.toFixed(1)}%)`;
 }
 
 function inventoryToRows(inventory, displayNameByKey, stackByItem) {
@@ -467,12 +542,14 @@ export default function CkplaceToolsPage() {
             <li>Paste your inventory in <strong>Item,Quantity</strong> CSV format and click <strong>Analyze Compression</strong>.</li>
             <li>Stack counts are always rounded up per item because every partial stack consumes a full inventory slot.</li>
             <li>
-              The optimizer only accepts actions that reduce total stack count, so it focuses on packing the most value into the smallest number of stacks.
+              The optimizer prefers stack-reducing actions first. If none are available, it can use setup craft steps that temporarily hold or increase stacks to unlock better later compression.
             </li>
             <li>
               In value-prioritized runs, actions are chosen by <strong>lowest value loss first</strong>, then <strong>lowest cost</strong>, and then best stack reduction.
             </li>
             <li>Use the value-loss thresholds to compare safer vs. aggressive plans and pick the run that fits your stack goal and budget.</li>
+            <li>&ldquo;Value&rdquo; means item-price value from the dataset. <strong>Cost</strong> is value lost in a conversion: <code>input value - output value</code> (never below 0).
+              <strong>Value loss %</strong> is <code>cost / input value × 100</code>.</li>
           </ul>
         </section>
 
@@ -519,6 +596,18 @@ export default function CkplaceToolsPage() {
               </p>
               <p className="text-sm text-slate-700">Operations used: {result.aggressiveOps.length}</p>
               <p className="text-sm text-slate-700">Total incurred cost: {result.aggressiveCost.toFixed(0)}</p>
+              <div className="rounded-md bg-slate-50 border border-slate-200 p-3">
+                <h3 className="text-sm font-semibold mb-1">Crafting / recycling steps</h3>
+                {result.aggressiveOps.length ? (
+                  <ol className="list-decimal pl-5 space-y-1 text-sm text-slate-700">
+                    {result.aggressiveOps.map((action, index) => (
+                      <li key={`${action.id}-${index}`}>{formatOperationStep(action, index)}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="text-sm text-slate-600">No operations were needed.</p>
+                )}
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm border-collapse">
                   <thead>
@@ -552,11 +641,20 @@ export default function CkplaceToolsPage() {
               </p>
               <div className="grid md:grid-cols-2 gap-3">
                 {result.byThreshold.map((bucket) => (
-                  <article key={bucket.threshold} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                  <article key={bucket.threshold} className="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-2">
                     <h3 className="font-semibold">Loss ≤ {bucket.threshold}%</h3>
                     <p className="text-sm text-slate-700">Operations: {bucket.operations.length}</p>
                     <p className="text-sm text-slate-700">Final stacks used: {bucket.finalSlots}</p>
                     <p className="text-sm text-slate-700">Total cost used: {bucket.totalCost.toFixed(0)}</p>
+                    {bucket.operations.length ? (
+                      <ol className="list-decimal pl-5 space-y-1 text-xs text-slate-700">
+                        {bucket.operations.slice(0, 8).map((action, index) => (
+                          <li key={`${bucket.threshold}-${action.id}-${index}`}>{formatOperationStep(action, index)}</li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className="text-xs text-slate-600">No operations under this value-loss cap.</p>
+                    )}
                   </article>
                 ))}
               </div>
