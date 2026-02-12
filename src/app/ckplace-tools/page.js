@@ -84,6 +84,9 @@ function buildArdbActionModel() {
         output: row.name,
         outputKey,
         inputs: row.resources,
+        inputValue,
+        outputValue,
+        valueDelta: outputValue - inputValue,
         cost,
         valueLossPercent: inputValue > 0 ? (cost / inputValue) * 100 : 0,
       };
@@ -97,6 +100,9 @@ function buildArdbActionModel() {
     itemKey: row.key,
     itemName: row.name,
     outputs: row.outputs,
+    inputValue: row.inputValue,
+    outputValue: row.outputValue,
+    valueDelta: row.outputValue - row.inputValue,
     cost: row.cost,
     valueLossPercent: row.valueLossPercent,
   }));
@@ -193,6 +199,9 @@ function buildCustomActionModel(customItems) {
         output: item.name,
         outputKey,
         inputs: item.recipe,
+        inputValue,
+        outputValue,
+        valueDelta: outputValue - inputValue,
         cost,
         valueLossPercent: inputValue > 0 ? (cost / inputValue) * 100 : 0,
       };
@@ -213,6 +222,9 @@ function buildCustomActionModel(customItems) {
         itemKey: key,
         itemName: item.name,
         outputs: item.recipe,
+        inputValue,
+        outputValue,
+        valueDelta: outputValue - inputValue,
         cost,
         valueLossPercent: inputValue > 0 ? (cost / inputValue) * 100 : 0,
       };
@@ -288,6 +300,8 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
     maxCost = Number.POSITIVE_INFINITY,
     valueLossPercentCap = Number.POSITIVE_INFINITY,
     prioritizeValueLoss = false,
+    avoidUndoPairs = false,
+    allowRecycling = true,
   } = options;
 
   const inventory = new Map(initialInventory);
@@ -296,6 +310,7 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
   let totalCost = 0;
   let iterationGuard = 0;
   let setupCraftStreak = 0;
+  let previousAction = null;
 
   while (iterationGuard < 3000) {
     iterationGuard += 1;
@@ -313,6 +328,14 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
 
     const currentStacks = getTotalStacks(inventory, stackByItem);
     const candidates = actions
+      .filter((action) => allowRecycling || action.type !== 'recycle')
+      .filter((action) => {
+        if (!avoidUndoPairs || !previousAction) return true;
+        const previousKey = previousAction.type === 'craft' ? previousAction.outputKey : previousAction.itemKey;
+        const currentKey = action.type === 'craft' ? action.outputKey : action.itemKey;
+        const reversesPrevious = previousAction.type !== action.type && previousKey === currentKey;
+        return !reversesPrevious;
+      })
       .filter((action) => action.valueLossPercent <= valueLossPercentCap)
       .filter((action) => totalCost + action.cost <= maxCost)
       .filter((action) => canApplyAction(action, inventory))
@@ -356,9 +379,11 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
 
     const sorted = [...eligibleCandidates].sort((a, b) => {
       if (prioritizeValueLoss) {
+        if (a.stackDelta !== b.stackDelta) return a.stackDelta - b.stackDelta;
+        if (a.valueDelta !== b.valueDelta) return b.valueDelta - a.valueDelta;
         if (a.valueLossPercent !== b.valueLossPercent) return a.valueLossPercent - b.valueLossPercent;
         if (a.totalActionCost !== b.totalActionCost) return a.totalActionCost - b.totalActionCost;
-        return a.stackDelta - b.stackDelta;
+        return 0;
       }
 
       if (a.stackDelta !== b.stackDelta) return a.stackDelta - b.stackDelta;
@@ -379,6 +404,7 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
 
     operations.push(chosen);
     totalCost += chosen.totalActionCost;
+    previousAction = chosen;
 
     const next = applyActionMultiple(chosen, inventory, chosen.repeatCount);
     inventory.clear();
@@ -435,7 +461,9 @@ export default function CkplaceToolsPage() {
 
     const aggressive = runCompression(initialInventory, model.stackByItem, [...model.craftActions, ...model.recycleActions], {
       maxCost: Number.POSITIVE_INFINITY,
-      prioritizeValueLoss: false,
+      prioritizeValueLoss: true,
+      avoidUndoPairs: true,
+      allowRecycling: false,
     });
 
     const aggressiveRows = inventoryToRows(aggressive.inventory, model.displayNameByKey, model.stackByItem);
@@ -594,6 +622,7 @@ export default function CkplaceToolsPage() {
               <p className="text-sm text-slate-700">
                 Baseline slots: <strong>{result.baselineSlots}</strong> → Compressed slots: <strong>{result.aggressiveSlots}</strong>
               </p>
+              <p className="text-sm text-slate-700">Strategy: craft-up only (no recycling), with anti-undo protection and value-aware ranking.</p>
               <p className="text-sm text-slate-700">Operations used: {result.aggressiveOps.length}</p>
               <p className="text-sm text-slate-700">Total incurred cost: {result.aggressiveCost.toFixed(0)}</p>
               <div className="rounded-md bg-slate-50 border border-slate-200 p-3">
