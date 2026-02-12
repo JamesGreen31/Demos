@@ -38,7 +38,7 @@ function getTotalStacks(inventory, stackByItem) {
   return [...inventory.entries()].reduce((sum, [key, qty]) => {
     if (qty <= 0) return sum;
     const stackSize = Math.max(stackByItem.get(key) ?? 1, 1);
-    return sum + qty / stackSize;
+    return sum + Math.ceil(qty / stackSize);
   }, 0);
 }
 
@@ -328,7 +328,7 @@ function inventoryToRows(inventory, displayNameByKey, stackByItem) {
       name: displayNameByKey.get(key) ?? key,
       quantity: qty,
       stackSize: stackByItem.get(key) ?? 1,
-      stacksUsed: qty / Math.max(stackByItem.get(key) ?? 1, 1),
+      stacksUsed: Math.ceil(qty / Math.max(stackByItem.get(key) ?? 1, 1)),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -461,6 +461,21 @@ export default function CkplaceToolsPage() {
           </button>
         </section>
 
+        <section className="rounded-xl border border-blue-200 bg-[#eef6ff] p-4 shadow-sm space-y-3">
+          <h2 className="text-lg font-semibold">How to use</h2>
+          <ul className="list-disc pl-5 space-y-2 text-sm text-slate-700">
+            <li>Paste your inventory in <strong>Item,Quantity</strong> CSV format and click <strong>Analyze Compression</strong>.</li>
+            <li>Stack counts are always rounded up per item because every partial stack consumes a full inventory slot.</li>
+            <li>
+              The optimizer only accepts actions that reduce total stack count, so it focuses on packing the most value into the smallest number of stacks.
+            </li>
+            <li>
+              In value-prioritized runs, actions are chosen by <strong>lowest value loss first</strong>, then <strong>lowest cost</strong>, and then best stack reduction.
+            </li>
+            <li>Use the value-loss thresholds to compare safer vs. aggressive plans and pick the run that fits your stack goal and budget.</li>
+          </ul>
+        </section>
+
         <section className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
           <label className="block text-sm font-semibold" htmlFor="csv-input">
             Item list CSV (Item,Quantity)
@@ -500,8 +515,7 @@ export default function CkplaceToolsPage() {
             <section className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-2">
               <h2 className="text-xl font-semibold">1) Most aggressive compression (ignores cost)</h2>
               <p className="text-sm text-slate-700">
-                Baseline slots: <strong>{result.baselineSlots.toFixed(2)}</strong> → Compressed slots:{' '}
-                <strong>{result.aggressiveSlots.toFixed(2)}</strong>
+                Baseline slots: <strong>{result.baselineSlots}</strong> → Compressed slots: <strong>{result.aggressiveSlots}</strong>
               </p>
               <p className="text-sm text-slate-700">Operations used: {result.aggressiveOps.length}</p>
               <p className="text-sm text-slate-700">Total incurred cost: {result.aggressiveCost.toFixed(0)}</p>
@@ -521,7 +535,7 @@ export default function CkplaceToolsPage() {
                         <td className="py-1.5">{row.name}</td>
                         <td className="py-1.5">{row.quantity}</td>
                         <td className="py-1.5">{row.stackSize}</td>
-                        <td className="py-1.5">{row.stacksUsed.toFixed(2)}</td>
+                        <td className="py-1.5">{row.stacksUsed}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -532,12 +546,16 @@ export default function CkplaceToolsPage() {
             <section className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
               <h2 className="text-xl font-semibold">2) Value-prioritized compression with cost budget</h2>
               <p className="text-sm text-slate-700">Configured max cost: {costBudget.toFixed(0)}</p>
+              <p className="text-sm text-slate-700">
+                Value-prioritized mode protects item value before stack count: within each threshold, it prefers the lowest-loss action first, then the lowest cost action,
+                and only then stronger stack reduction.
+              </p>
               <div className="grid md:grid-cols-2 gap-3">
                 {result.byThreshold.map((bucket) => (
                   <article key={bucket.threshold} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
                     <h3 className="font-semibold">Loss ≤ {bucket.threshold}%</h3>
                     <p className="text-sm text-slate-700">Operations: {bucket.operations.length}</p>
-                    <p className="text-sm text-slate-700">Final stacks used: {bucket.finalSlots.toFixed(2)}</p>
+                    <p className="text-sm text-slate-700">Final stacks used: {bucket.finalSlots}</p>
                     <p className="text-sm text-slate-700">Total cost used: {bucket.totalCost.toFixed(0)}</p>
                   </article>
                 ))}
