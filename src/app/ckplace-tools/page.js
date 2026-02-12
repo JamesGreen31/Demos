@@ -417,9 +417,24 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
 }
 
 
-function formatOperationStep(action, index) {
+function compressConsecutiveOperations(operations) {
+  return operations.reduce((accumulator, action) => {
+    const previous = accumulator[accumulator.length - 1];
+    if (!previous || previous.id !== action.id) {
+      accumulator.push({ ...action });
+      return accumulator;
+    }
+
+    previous.repeatCount += action.repeatCount;
+    previous.totalActionCost += action.totalActionCost;
+    previous.stackDelta += action.stackDelta;
+    return accumulator;
+  }, []);
+}
+
+function formatOperationStep(action) {
   const typeLabel = action.type === 'craft' ? 'Craft' : 'Recycle';
-  return `${index + 1}. ${typeLabel} · ${action.label.replace(/^Craft\s|^Recycle\s/, '')} ×${action.repeatCount} (stack Δ ${action.stackDelta}, cost ${action.totalActionCost.toFixed(0)}, value loss ${action.valueLossPercent.toFixed(1)}%)`;
+  return `${typeLabel} · ${action.label.replace(/^Craft\s|^Recycle\s/, '')} ×${action.repeatCount} (stack Δ ${action.stackDelta}, cost ${action.totalActionCost.toFixed(0)}, value loss ${action.valueLossPercent.toFixed(1)}%)`;
 }
 
 function inventoryToRows(inventory, displayNameByKey, stackByItem) {
@@ -468,6 +483,7 @@ export default function CkplaceToolsPage() {
 
     const aggressiveRows = inventoryToRows(aggressive.inventory, model.displayNameByKey, model.stackByItem);
     const aggressiveSlots = getTotalStacks(aggressive.inventory, model.stackByItem);
+    const aggressiveOps = compressConsecutiveOperations(aggressive.operations);
 
     const byThreshold = VALUE_THRESHOLDS.map((threshold) => {
       const run = runCompression(initialInventory, model.stackByItem, [...model.craftActions, ...model.recycleActions], {
@@ -478,10 +494,11 @@ export default function CkplaceToolsPage() {
 
       const finalRows = inventoryToRows(run.inventory, model.displayNameByKey, model.stackByItem);
       const finalSlots = getTotalStacks(run.inventory, model.stackByItem);
+      const operations = compressConsecutiveOperations(run.operations);
 
       return {
         threshold,
-        operations: run.operations,
+        operations,
         finalRows,
         finalSlots,
         totalCost: run.totalCost,
@@ -493,7 +510,7 @@ export default function CkplaceToolsPage() {
       baselineSlots,
       aggressiveRows,
       aggressiveSlots,
-      aggressiveOps: aggressive.operations,
+      aggressiveOps,
       aggressiveCost: aggressive.totalCost,
       byThreshold,
     };
@@ -630,7 +647,7 @@ export default function CkplaceToolsPage() {
                 {result.aggressiveOps.length ? (
                   <ol className="list-decimal pl-5 space-y-1 text-sm text-slate-700">
                     {result.aggressiveOps.map((action, index) => (
-                      <li key={`${action.id}-${index}`}>{formatOperationStep(action, index)}</li>
+                      <li key={`${action.id}-${index}`}>{formatOperationStep(action)}</li>
                     ))}
                   </ol>
                 ) : (
@@ -678,7 +695,7 @@ export default function CkplaceToolsPage() {
                     {bucket.operations.length ? (
                       <ol className="list-decimal pl-5 space-y-1 text-xs text-slate-700">
                         {bucket.operations.slice(0, 8).map((action, index) => (
-                          <li key={`${bucket.threshold}-${action.id}-${index}`}>{formatOperationStep(action, index)}</li>
+                          <li key={`${bucket.threshold}-${action.id}-${index}`}>{formatOperationStep(action)}</li>
                         ))}
                       </ol>
                     ) : (
