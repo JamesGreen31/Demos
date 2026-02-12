@@ -461,7 +461,7 @@ export default function CkplaceToolsPage() {
           </button>
         </section>
 
-        <section className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+        <section className="rounded-xl border border-blue-200 bg-[#eef6ff] p-4 shadow-sm space-y-3">
           <h2 className="text-lg font-semibold">How to use</h2>
           <ul className="list-disc pl-5 space-y-2 text-sm text-slate-700">
             <li>Paste your inventory in <strong>Item,Quantity</strong> CSV format and click <strong>Analyze Compression</strong>.</li>
@@ -470,8 +470,9 @@ export default function CkplaceToolsPage() {
               The optimizer only accepts actions that reduce total stack count, so it focuses on packing the most value into the smallest number of stacks.
             </li>
             <li>
-              Use the value-loss thresholds to compare safer vs. aggressive plans and pick the run that fits your stack goal and budget.
+              In value-prioritized runs, actions are chosen by <strong>lowest value loss first</strong>, then <strong>lowest cost</strong>, and then best stack reduction.
             </li>
+            <li>Use the value-loss thresholds to compare safer vs. aggressive plans and pick the run that fits your stack goal and budget.</li>
           </ul>
         </section>
 
@@ -545,6 +546,10 @@ export default function CkplaceToolsPage() {
             <section className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
               <h2 className="text-xl font-semibold">2) Value-prioritized compression with cost budget</h2>
               <p className="text-sm text-slate-700">Configured max cost: {costBudget.toFixed(0)}</p>
+              <p className="text-sm text-slate-700">
+                Value-prioritized mode protects item value before stack count: within each threshold, it prefers the lowest-loss action first, then the lowest cost action,
+                and only then stronger stack reduction.
+              </p>
               <div className="grid md:grid-cols-2 gap-3">
                 {result.byThreshold.map((bucket) => (
                   <article key={bucket.threshold} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
