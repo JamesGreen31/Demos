@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import rawData from './arc-compression-data.json';
 
 const VALUE_THRESHOLDS = [0, 10, 25, 50, 100];
@@ -456,65 +456,107 @@ export default function CkplaceToolsPage() {
   const [costBudget, setCostBudget] = useState(1000);
   const [error, setError] = useState('');
   const [datasetMessage, setDatasetMessage] = useState('Using ARDB default dataset.');
+  const [analysisRequest, setAnalysisRequest] = useState(null);
+  const [result, setResult] = useState(null);
+  const [analysisProgress, setAnalysisProgress] = useState({ running: false, percent: 0, label: '' });
 
   const defaultModel = useMemo(() => buildArdbActionModel(), []);
   const [customModel, setCustomModel] = useState(null);
   const model = customModel ?? defaultModel;
 
-  const result = useMemo(() => {
-    if (!parsedRows.length) return null;
+  useEffect(() => {
+    if (!analysisRequest) return;
 
-    const initialInventory = new Map();
-    for (const row of parsedRows) {
-      const key = normalizeName(row.item);
-      if (!model.displayNameByKey.has(key)) continue;
-      initialInventory.set(key, (initialInventory.get(key) ?? 0) + row.quantity);
-    }
+    let cancelled = false;
 
-    const baselineRows = inventoryToRows(initialInventory, model.displayNameByKey, model.stackByItem);
-    const baselineSlots = getTotalStacks(initialInventory, model.stackByItem);
+    async function computeAnalysis() {
+      const waitForPaint = () => new Promise((resolve) => setTimeout(resolve, 0));
+      const rows = analysisRequest.rows;
+      const budget = analysisRequest.costBudget;
 
-    const aggressive = runCompression(initialInventory, model.stackByItem, [...model.craftActions, ...model.recycleActions], {
-      maxCost: Number.POSITIVE_INFINITY,
-      prioritizeValueLoss: true,
-      avoidUndoPairs: true,
-      allowRecycling: false,
-    });
+      if (!rows.length) {
+        setResult(null);
+        setAnalysisProgress({ running: false, percent: 0, label: '' });
+        return;
+      }
 
-    const aggressiveRows = inventoryToRows(aggressive.inventory, model.displayNameByKey, model.stackByItem);
-    const aggressiveSlots = getTotalStacks(aggressive.inventory, model.stackByItem);
-    const aggressiveOps = compressConsecutiveOperations(aggressive.operations);
+      setAnalysisProgress({ running: true, percent: 5, label: 'Preparing inventory...' });
+      await waitForPaint();
+      if (cancelled) return;
 
-    const byThreshold = VALUE_THRESHOLDS.map((threshold) => {
-      const run = runCompression(initialInventory, model.stackByItem, [...model.craftActions, ...model.recycleActions], {
-        maxCost: Math.max(0, costBudget),
-        valueLossPercentCap: threshold,
+      const initialInventory = new Map();
+      for (const row of rows) {
+        const key = normalizeName(row.item);
+        if (!model.displayNameByKey.has(key)) continue;
+        initialInventory.set(key, (initialInventory.get(key) ?? 0) + row.quantity);
+      }
+
+      const baselineRows = inventoryToRows(initialInventory, model.displayNameByKey, model.stackByItem);
+      const baselineSlots = getTotalStacks(initialInventory, model.stackByItem);
+
+      setAnalysisProgress({ running: true, percent: 20, label: 'Running aggressive compression...' });
+      await waitForPaint();
+      if (cancelled) return;
+
+      const aggressive = runCompression(initialInventory, model.stackByItem, [...model.craftActions, ...model.recycleActions], {
+        maxCost: Number.POSITIVE_INFINITY,
         prioritizeValueLoss: true,
+        avoidUndoPairs: true,
+        allowRecycling: false,
       });
 
-      const finalRows = inventoryToRows(run.inventory, model.displayNameByKey, model.stackByItem);
-      const finalSlots = getTotalStacks(run.inventory, model.stackByItem);
-      const operations = compressConsecutiveOperations(run.operations);
+      const aggressiveRows = inventoryToRows(aggressive.inventory, model.displayNameByKey, model.stackByItem);
+      const aggressiveSlots = getTotalStacks(aggressive.inventory, model.stackByItem);
+      const aggressiveOps = compressConsecutiveOperations(aggressive.operations);
 
-      return {
-        threshold,
-        operations,
-        finalRows,
-        finalSlots,
-        totalCost: run.totalCost,
-      };
-    });
+      const byThreshold = [];
+      for (const [index, threshold] of VALUE_THRESHOLDS.entries()) {
+        const startPercent = 30;
+        const spanPercent = 60;
+        const progress = startPercent + Math.round(((index + 1) / VALUE_THRESHOLDS.length) * spanPercent);
+        setAnalysisProgress({ running: true, percent: progress, label: `Evaluating value-loss threshold ≤ ${threshold}%...` });
+        await waitForPaint();
+        if (cancelled) return;
 
-    return {
-      baselineRows,
-      baselineSlots,
-      aggressiveRows,
-      aggressiveSlots,
-      aggressiveOps,
-      aggressiveCost: aggressive.totalCost,
-      byThreshold,
+        const run = runCompression(initialInventory, model.stackByItem, [...model.craftActions, ...model.recycleActions], {
+          maxCost: Math.max(0, budget),
+          valueLossPercentCap: threshold,
+          prioritizeValueLoss: true,
+        });
+
+        const finalRows = inventoryToRows(run.inventory, model.displayNameByKey, model.stackByItem);
+        const finalSlots = getTotalStacks(run.inventory, model.stackByItem);
+        const operations = compressConsecutiveOperations(run.operations);
+
+        byThreshold.push({
+          threshold,
+          operations,
+          finalRows,
+          finalSlots,
+          totalCost: run.totalCost,
+        });
+      }
+
+      if (cancelled) return;
+
+      setResult({
+        baselineRows,
+        baselineSlots,
+        aggressiveRows,
+        aggressiveSlots,
+        aggressiveOps,
+        aggressiveCost: aggressive.totalCost,
+        byThreshold,
+      });
+      setAnalysisProgress({ running: false, percent: 100, label: 'Compression analysis complete.' });
+    }
+
+    computeAnalysis();
+
+    return () => {
+      cancelled = true;
     };
-  }, [parsedRows, costBudget, model]);
+  }, [analysisRequest, model]);
 
   async function handleDatasetUpload(event) {
     const file = event.target.files?.[0];
@@ -555,6 +597,8 @@ export default function CkplaceToolsPage() {
     setError('');
     setCostBudget(parsedBudget);
     setParsedRows(parsed);
+    setResult(null);
+    setAnalysisRequest({ rows: parsed, costBudget: parsedBudget, requestedAt: Date.now() });
   }
 
   return (
@@ -626,10 +670,22 @@ export default function CkplaceToolsPage() {
             type="button"
             className="px-4 py-2 rounded-md bg-slate-900 text-white text-sm font-semibold hover:bg-slate-700"
             onClick={handleAnalyze}
+            disabled={analysisProgress.running}
           >
-            Analyze Compression
+            {analysisProgress.running ? 'Analyzing...' : 'Analyze Compression'}
           </button>
           {error && <p className="text-sm text-red-700">{error}</p>}
+          {(analysisProgress.running || analysisProgress.percent === 100) && (
+            <div className="space-y-1" aria-live="polite">
+              <div className="flex items-center justify-between text-xs text-slate-600">
+                <span>{analysisProgress.label}</span>
+                <span>{analysisProgress.percent}%</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={analysisProgress.percent}>
+                <div className="h-full bg-blue-600 transition-all duration-200" style={{ width: `${analysisProgress.percent}%` }} />
+              </div>
+            </div>
+          )}
         </section>
 
         {result && (
