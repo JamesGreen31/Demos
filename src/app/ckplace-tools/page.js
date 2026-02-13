@@ -459,6 +459,7 @@ export default function CkplaceToolsPage() {
   const [analysisRequest, setAnalysisRequest] = useState(null);
   const [result, setResult] = useState(null);
   const [analysisProgress, setAnalysisProgress] = useState({ running: false, percent: 0, label: '' });
+  const [expandedThresholds, setExpandedThresholds] = useState({});
 
   const defaultModel = useMemo(() => buildArdbActionModel(), []);
   const [customModel, setCustomModel] = useState(null);
@@ -598,6 +599,7 @@ export default function CkplaceToolsPage() {
     setCostBudget(parsedBudget);
     setParsedRows(parsed);
     setResult(null);
+    setExpandedThresholds({});
     setAnalysisRequest({ rows: parsed, costBudget: parsedBudget, requestedAt: Date.now() });
   }
 
@@ -638,6 +640,7 @@ export default function CkplaceToolsPage() {
             </li>
             <li>Use the value-loss thresholds to compare safer vs. aggressive plans and pick the run that fits your stack goal and budget.</li>
             <li>&ldquo;Value&rdquo; means item-price value from the dataset. <strong>Cost</strong> is value lost in a conversion: <code>input value - output value</code> (never below 0).
+              Value can decrease on <strong>crafting</strong> too when ingredients are worth more than the crafted output, not only from recycling.
               <strong>Value loss %</strong> is <code>cost / input value × 100</code>.</li>
           </ul>
         </section>
@@ -742,23 +745,53 @@ export default function CkplaceToolsPage() {
                 and only then stronger stack reduction.
               </p>
               <div className="grid md:grid-cols-2 gap-3">
-                {result.byThreshold.map((bucket) => (
-                  <article key={bucket.threshold} className="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-2">
-                    <h3 className="font-semibold">Loss ≤ {bucket.threshold}%</h3>
-                    <p className="text-sm text-slate-700">Operations: {bucket.operations.length}</p>
-                    <p className="text-sm text-slate-700">Final stacks used: {bucket.finalSlots}</p>
-                    <p className="text-sm text-slate-700">Total cost used: {bucket.totalCost.toFixed(0)}</p>
-                    {bucket.operations.length ? (
-                      <ol className="list-decimal pl-5 space-y-1 text-xs text-slate-700">
-                        {bucket.operations.slice(0, 8).map((action, index) => (
-                          <li key={`${bucket.threshold}-${action.id}-${index}`}>{formatOperationStep(action)}</li>
-                        ))}
-                      </ol>
-                    ) : (
-                      <p className="text-xs text-slate-600">No operations under this value-loss cap.</p>
-                    )}
-                  </article>
-                ))}
+                {result.byThreshold.map((bucket) => {
+                  const isExpanded = expandedThresholds[bucket.threshold] === true;
+                  const visibleOperations = isExpanded ? bucket.operations : bucket.operations.slice(0, 8);
+
+                  return (
+                    <article key={bucket.threshold} className="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-2">
+                      <h3 className="font-semibold">Loss ≤ {bucket.threshold}%</h3>
+                      <p className="text-sm text-slate-700">Operations: {bucket.operations.length}</p>
+                      <p className="text-sm text-slate-700">Final stacks used: {bucket.finalSlots}</p>
+                      <p className="text-sm text-slate-700">Total cost used: {bucket.totalCost.toFixed(0)}</p>
+                      {bucket.operations.length ? (
+                        <>
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-xs text-slate-600">
+                              Showing {visibleOperations.length} of {bucket.operations.length} actions.
+                            </p>
+                            <label className="text-xs text-slate-700 flex items-center gap-2" htmlFor={`operation-view-${bucket.threshold}`}>
+                              Show
+                              <select
+                                id={`operation-view-${bucket.threshold}`}
+                                className="border border-slate-300 rounded px-2 py-1 bg-white"
+                                value={isExpanded ? 'all' : '8'}
+                                onChange={(event) => {
+                                  const showAll = event.target.value === 'all';
+                                  setExpandedThresholds((previous) => ({
+                                    ...previous,
+                                    [bucket.threshold]: showAll,
+                                  }));
+                                }}
+                              >
+                                <option value="8">Top 8</option>
+                                <option value="all">All</option>
+                              </select>
+                            </label>
+                          </div>
+                          <ol className="list-decimal pl-5 space-y-1 text-xs text-slate-700">
+                            {visibleOperations.map((action, index) => (
+                              <li key={`${bucket.threshold}-${action.id}-${index}`}>{formatOperationStep(action)}</li>
+                            ))}
+                          </ol>
+                        </>
+                      ) : (
+                        <p className="text-xs text-slate-600">No operations under this value-loss cap.</p>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             </section>
           </>
