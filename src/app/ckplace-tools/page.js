@@ -548,7 +548,6 @@ export default function CkplaceToolsPage() {
             avoidUndoPairs: true,
             allowRecycling: true,
             phaseOrder: 'recycle_then_craft',
-            maxUsesPerActionId: 1,
             disallowActionAfterPhaseSwitch: true,
           };
 
