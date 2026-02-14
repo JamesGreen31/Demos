@@ -22,6 +22,11 @@ const DIRECTIONS = [
   [1, 1], [1, -1], [-1, 1], [-1, -1],
 ];
 
+const EASY_DIRECTIONS = [
+  [0, 1],
+  [1, 0],
+];
+
 function randomInt(max) {
   return Math.floor(Math.random() * max);
 }
@@ -43,25 +48,64 @@ function cellsForPlacement(startRow, startCol, dx, dy, length) {
   return Array.from({ length }, (_, offset) => [startRow + (dx * offset), startCol + (dy * offset)]);
 }
 
-function buildPuzzle(size, requestedCount) {
+function canPlaceWord(grid, cells, word, mode) {
+  const size = grid.length;
+  const candidateSet = new Set(cells.map(([row, col]) => cellKey(row, col)));
+
+  for (let index = 0; index < cells.length; index += 1) {
+    const [row, col] = cells[index];
+    const letter = grid[row][col];
+
+    if (mode === 'hard') {
+      if (letter !== '' && letter !== word[index]) {
+        return false;
+      }
+      continue;
+    }
+
+    if (letter !== '') {
+      return false;
+    }
+
+    for (let rowOffset = -1; rowOffset <= 1; rowOffset += 1) {
+      for (let colOffset = -1; colOffset <= 1; colOffset += 1) {
+        const nextRow = row + rowOffset;
+        const nextCol = col + colOffset;
+        if (!inBounds(nextRow, nextCol, size)) continue;
+        if (grid[nextRow][nextCol] === '') continue;
+        if (candidateSet.has(cellKey(nextRow, nextCol))) continue;
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+function buildPuzzle(size, requestedCount, mode = 'hard') {
   const grid = Array.from({ length: size }, () => Array(size).fill(''));
   const availableWords = shuffle(WORD_BANK.filter((word) => word.length <= size));
-  const selectedWords = availableWords.slice(0, Math.min(requestedCount, availableWords.length));
   const placements = [];
+  const targetWordCount = Math.min(requestedCount, availableWords.length);
+  const directions = mode === 'easy' ? EASY_DIRECTIONS : DIRECTIONS;
 
-  selectedWords.forEach((word) => {
+  availableWords.some((word) => {
+    if (placements.length >= targetWordCount) {
+      return true;
+    }
+
     let placed = false;
 
-    for (let attempt = 0; attempt < 300 && !placed; attempt += 1) {
-      const [dx, dy] = DIRECTIONS[randomInt(DIRECTIONS.length)];
+    for (let attempt = 0; attempt < 500 && !placed; attempt += 1) {
+      const [dx, dy] = directions[randomInt(directions.length)];
       const startRow = randomInt(size);
       const startCol = randomInt(size);
       const cells = cellsForPlacement(startRow, startCol, dx, dy, word.length);
 
-      const valid = cells.every(([row, col], offset) => (
-        inBounds(row, col, size) && (grid[row][col] === '' || grid[row][col] === word[offset])
-      ));
+      const inRange = cells.every(([row, col]) => inBounds(row, col, size));
+      if (!inRange) continue;
 
+      const valid = canPlaceWord(grid, cells, word, mode);
       if (!valid) continue;
 
       cells.forEach(([row, col], offset) => {
@@ -71,6 +115,8 @@ function buildPuzzle(size, requestedCount) {
       placements.push({ word, cells });
       placed = true;
     }
+
+    return false;
   });
 
   for (let row = 0; row < size; row += 1) {
@@ -125,7 +171,8 @@ export default function CrosswordPage() {
   const demosHref = process.env.NODE_ENV === 'production' ? '/Demos' : '/';
   const [size, setSize] = useState(12);
   const [wordCount, setWordCount] = useState(8);
-  const [game, setGame] = useState(() => buildPuzzle(12, 8));
+  const [mode, setMode] = useState('hard');
+  const [game, setGame] = useState(() => buildPuzzle(12, 8, 'hard'));
   const [foundWords, setFoundWords] = useState([]);
   const [selectionStart, setSelectionStart] = useState(null);
   const [selectionEnd, setSelectionEnd] = useState(null);
@@ -145,19 +192,26 @@ export default function CrosswordPage() {
     return set;
   }, [game.placements, foundSet]);
 
-  function newGame(nextSize = size, nextWordCount = wordCount) {
-    const puzzle = buildPuzzle(nextSize, nextWordCount);
+  function newGame(nextSize = size, nextWordCount = wordCount, nextMode = mode) {
+    const puzzle = buildPuzzle(nextSize, nextWordCount, nextMode);
     setGame(puzzle);
     setFoundWords([]);
     setSelectionStart(null);
     setSelectionEnd(null);
-    setStatus('New puzzle generated. Start searching!');
+    setStatus(`New ${nextMode} puzzle generated. Start searching!`);
   }
 
   function applySelection(start, end) {
     const line = selectedLine(start, end);
     if (!line) {
       setStatus('Selections must be horizontal, vertical, or diagonal.');
+      return;
+    }
+
+    const sameRow = start[0] === end[0];
+    const sameCol = start[1] === end[1];
+    if (mode === 'easy' && !sameRow && !sameCol) {
+      setStatus('Easy mode words are only horizontal or vertical.');
       return;
     }
 
@@ -273,8 +327,9 @@ export default function CrosswordPage() {
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-3">About the game</h2>
         <p className="text-slate-700">
-          This CKPLACE word-search style crossword hides words in horizontal, vertical, and diagonal lines.
-          Pick a start letter, then the matching end letter of a word to claim it.
+          This CKPLACE word-search style crossword now includes two modes.
+          Easy mode places words left-to-right or top-to-bottom with at least one-cell padding between words.
+          Hard mode allows touching words in any direction.
         </p>
       </section>
 
@@ -282,7 +337,8 @@ export default function CrosswordPage() {
         <h2 className="text-2xl font-semibold mb-3">How to play</h2>
         <ul className="list-disc pl-5 space-y-2 text-slate-700">
           <li>Choose a board size and number of hidden words, then start a new game.</li>
-          <li>Words can appear horizontally, vertically, and diagonally in either direction.</li>
+          <li>Easy mode: words are only left-to-right or top-to-bottom and do not touch.</li>
+          <li>Hard mode: words can touch and can appear in any direction.</li>
           <li>Click or drag from a start cell to an end cell to select an entire line.</li>
           <li>If your line matches a hidden word, it is marked as solved.</li>
           <li>Use <strong>Solve</strong> for automated completion at any time.</li>
@@ -316,6 +372,22 @@ export default function CrosswordPage() {
             />
           </label>
 
+          <label className="flex items-center gap-2">
+            <span className="font-semibold">Mode</span>
+            <select
+              value={mode}
+              onChange={(event) => {
+                const nextMode = event.target.value;
+                setMode(nextMode);
+                newGame(size, wordCount, nextMode);
+              }}
+              className="border border-slate-300 rounded px-3 py-2"
+            >
+              <option value="easy">Easy</option>
+              <option value="hard">Hard</option>
+            </select>
+          </label>
+
           <button
             type="button"
             onClick={() => newGame()}
@@ -336,6 +408,9 @@ export default function CrosswordPage() {
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 rounded-lg bg-slate-100 p-4">
           <p className="text-slate-700">{status}</p>
+          <p className="text-slate-700 mt-1">
+            Mode: <strong>{mode === 'easy' ? 'Easy' : 'Hard'}</strong>
+          </p>
           <p className="text-slate-700 mt-1">
             Solved words: <strong>{foundWords.length}</strong> / <strong>{game.words.length}</strong>
           </p>
