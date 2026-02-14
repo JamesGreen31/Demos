@@ -197,6 +197,10 @@ export default function CrosswordPage() {
       return;
     }
 
+    if (selectionStart?.[0] === row && selectionStart?.[1] === col) {
+      return;
+    }
+
     if (!selectionStart) {
       setSelectionStart([row, col]);
       setSelectionEnd([row, col]);
@@ -209,8 +213,10 @@ export default function CrosswordPage() {
   function handlePointerDown(row, col) {
     draggedRef.current = false;
     setIsDragging(true);
-    setSelectionStart([row, col]);
-    setSelectionEnd([row, col]);
+    if (!selectionStart) {
+      setSelectionStart([row, col]);
+      setSelectionEnd([row, col]);
+    }
   }
 
   function handlePointerEnter(row, col) {
