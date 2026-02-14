@@ -1,45 +1,132 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280" role="img" aria-label="A star board preview">
+<svg width="800" height="500" viewBox="0 0 800 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Background -->
+  <rect width="800" height="500" rx="30" fill="#E8F1FF"/>
+
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#d9eef2"/>
-      <stop offset="100%" stop-color="#9ec4d8"/>
-    </linearGradient>
+    <!-- Soft panel shadow -->
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#0F172A" flood-opacity="0.10"/>
+    </filter>
+
+    <!-- Path glow -->
+    <filter id="pathGlow">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#2563EB" flood-opacity="0.35"/>
+    </filter>
   </defs>
-  <rect width="400" height="280" fill="url(#bg)"/>
-  <g transform="translate(36 20)">
-    <rect x="0" y="0" width="328" height="240" rx="12" fill="#1f2937" opacity="0.15"/>
-    <g transform="translate(12 12)">
-      <g fill="#d1d5db">
-        <rect x="0" y="0" width="34" height="34" rx="5"/>
-        <rect x="38" y="0" width="34" height="34" rx="5"/>
-        <rect x="76" y="0" width="34" height="34" rx="5"/>
-        <rect x="114" y="0" width="34" height="34" rx="5"/>
-        <rect x="152" y="0" width="34" height="34" rx="5"/>
-        <rect x="190" y="0" width="34" height="34" rx="5"/>
-        <rect x="228" y="0" width="34" height="34" rx="5"/>
-        <rect x="266" y="0" width="34" height="34" rx="5"/>
-      </g>
-      <g fill="#d1d5db" transform="translate(0,38)">
-        <rect x="0" y="0" width="34" height="34" rx="5"/><rect x="38" y="0" width="34" height="34" rx="5"/><rect x="76" y="0" width="34" height="34" rx="5"/><rect x="114" y="0" width="34" height="34" rx="5"/><rect x="152" y="0" width="34" height="34" rx="5"/><rect x="190" y="0" width="34" height="34" rx="5"/><rect x="228" y="0" width="34" height="34" rx="5"/><rect x="266" y="0" width="34" height="34" rx="5"/>
-      </g>
-      <g fill="#d1d5db" transform="translate(0,76)">
-        <rect x="0" y="0" width="34" height="34" rx="5"/><rect x="38" y="0" width="34" height="34" rx="5"/><rect x="76" y="0" width="34" height="34" rx="5"/><rect x="114" y="0" width="34" height="34" rx="5"/><rect x="152" y="0" width="34" height="34" rx="5"/><rect x="190" y="0" width="34" height="34" rx="5"/><rect x="228" y="0" width="34" height="34" rx="5"/><rect x="266" y="0" width="34" height="34" rx="5"/>
-      </g>
-      <g fill="#d1d5db" transform="translate(0,114)">
-        <rect x="0" y="0" width="34" height="34" rx="5"/><rect x="38" y="0" width="34" height="34" rx="5"/><rect x="76" y="0" width="34" height="34" rx="5"/><rect x="114" y="0" width="34" height="34" rx="5"/><rect x="152" y="0" width="34" height="34" rx="5"/><rect x="190" y="0" width="34" height="34" rx="5"/><rect x="228" y="0" width="34" height="34" rx="5"/><rect x="266" y="0" width="34" height="34" rx="5"/>
-      </g>
-      <g fill="#d1d5db" transform="translate(0,152)">
-        <rect x="0" y="0" width="34" height="34" rx="5"/><rect x="38" y="0" width="34" height="34" rx="5"/><rect x="76" y="0" width="34" height="34" rx="5"/><rect x="114" y="0" width="34" height="34" rx="5"/><rect x="152" y="0" width="34" height="34" rx="5"/><rect x="190" y="0" width="34" height="34" rx="5"/><rect x="228" y="0" width="34" height="34" rx="5"/><rect x="266" y="0" width="34" height="34" rx="5"/>
-      </g>
-      <g fill="#d1d5db" transform="translate(0,190)">
-        <rect x="0" y="0" width="34" height="34" rx="5"/><rect x="38" y="0" width="34" height="34" rx="5"/><rect x="76" y="0" width="34" height="34" rx="5"/><rect x="114" y="0" width="34" height="34" rx="5"/><rect x="152" y="0" width="34" height="34" rx="5"/><rect x="190" y="0" width="34" height="34" rx="5"/><rect x="228" y="0" width="34" height="34" rx="5"/><rect x="266" y="0" width="34" height="34" rx="5"/>
-      </g>
-      <rect x="0" y="190" width="34" height="34" rx="5" fill="#2e7a34"/>
-      <rect x="266" y="0" width="34" height="34" rx="5" fill="#a4832f"/>
-      <polyline points="17,207 55,169 93,169 131,131 169,131 207,93 245,55 283,17" fill="none" stroke="#3b82f6" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
-      <rect x="93" y="93" width="34" height="34" rx="5" fill="#ef4444"/>
-      <rect x="131" y="93" width="34" height="34" rx="5" fill="#ef4444"/>
-      <rect x="131" y="55" width="34" height="34" rx="5" fill="#ef4444"/>
-    </g>
+
+  <!-- Panel -->
+  <rect x="170" y="50" width="460" height="400" rx="22"
+        fill="#F8FAFC"
+        stroke="#BFDBFE"
+        stroke-width="4"
+        filter="url(#softShadow)"/>
+
+  <!-- Inner Grid -->
+  <rect x="190" y="70" width="420" height="360" rx="16"
+        fill="#FFFFFF"
+        stroke="#E2E8F0"
+        stroke-width="2"/>
+
+  <!-- Grid lines -->
+  <g stroke="#CBD5E1" stroke-width="2">
+    <!-- vertical -->
+    <path d="M250 70V430"/>
+    <path d="M310 70V430"/>
+    <path d="M370 70V430"/>
+    <path d="M430 70V430"/>
+    <path d="M490 70V430"/>
+    <path d="M550 70V430"/>
+    <!-- horizontal -->
+    <path d="M190 130H610"/>
+    <path d="M190 190H610"/>
+    <path d="M190 250H610"/>
+    <path d="M190 310H610"/>
+    <path d="M190 370H610"/>
   </g>
+
+  <!-- START -->
+  <rect x="190" y="370" width="60" height="60" fill="#22C55E"/>
+  <text x="220" y="400"
+        font-family="Arial"
+        font-size="16"
+        font-weight="700"
+        text-anchor="middle"
+        dominant-baseline="middle"
+        fill="white">START</text>
+
+  <!-- END -->
+  <rect x="550" y="70" width="60" height="60" fill="#F59E0B"/>
+  <text x="580" y="100"
+        font-family="Arial"
+        font-size="16"
+        font-weight="700"
+        text-anchor="middle"
+        dominant-baseline="middle"
+        fill="white">END</text>
+
+  <!-- Red obstacle wall with one gap -->
+  <!-- Vertical barrier -->
+  <rect x="370" y="70"  width="59" height="59" fill="#EF4444"/>
+  <rect x="370" y="130" width="59" height="59" fill="#EF4444"/>
+  <!-- GAP at 190 -->
+  <rect x="370" y="250" width="59" height="59" fill="#EF4444"/>
+  <rect x="370" y="310" width="59" height="59" fill="#EF4444"/>
+
+  <!-- Extra blockers to force route -->
+  <rect x="310" y="250" width="59" height="59" fill="#EF4444"/>
+  <rect x="430" y="130" width="59" height="59" fill="#EF4444"/>
+  <rect x="430" y="370" width="59" height="59" fill="#EF4444"/>
+
+
+  <!-- Path glow (orthogonal only) -->
+  <polyline
+    points="
+      220,370
+      220,340
+      220,280
+      280,280
+      280,220
+      340,220
+      340,220
+      400,220
+      460,220
+      520,220
+      520,120
+      520,100
+      554,100
+    "
+    fill="none"
+    stroke="#2563EB"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity="0.15"
+    filter="url(#pathGlow)"
+  />
+
+  <!-- Main orthogonal path -->
+  <polyline
+    points="
+      220,370
+      220,340
+      220,280
+      280,280
+      280,220
+      340,220
+      340,220
+      400,220
+      460,220
+      520,220
+      520,120
+      520,100
+      554,100
+    "
+    fill="none"
+    stroke="#2563EB"
+    stroke-width="8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
 </svg>
