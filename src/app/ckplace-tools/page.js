@@ -302,6 +302,9 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
     prioritizeValueLoss = false,
     avoidUndoPairs = false,
     allowRecycling = true,
+    phaseOrder = 'mixed',
+    maxUsesPerActionId = Number.POSITIVE_INFINITY,
+    disallowActionAfterPhaseSwitch = false,
   } = options;
 
   const inventory = new Map(initialInventory);
@@ -311,6 +314,9 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
   let iterationGuard = 0;
   let setupCraftStreak = 0;
   let previousAction = null;
+  let currentPhase = phaseOrder === 'recycle_then_craft' ? 'recycle' : 'mixed';
+  let hasSwitchedToCraftPhase = false;
+  const actionUseCountById = new Map();
 
   while (iterationGuard < 3000) {
     iterationGuard += 1;
@@ -327,8 +333,22 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
     seenStates.add(stateKey);
 
     const currentStacks = getTotalStacks(inventory, stackByItem);
+    const isActionTypeAllowedForPhase = (action) => {
+      if (currentPhase === 'recycle') {
+        return action.type === 'recycle';
+      }
+      if (currentPhase === 'craft') {
+        if (disallowActionAfterPhaseSwitch || phaseOrder === 'recycle_then_craft') {
+          return action.type === 'craft';
+        }
+      }
+      return true;
+    };
+
     const candidates = actions
       .filter((action) => allowRecycling || action.type !== 'recycle')
+      .filter((action) => isActionTypeAllowedForPhase(action))
+      .filter((action) => (actionUseCountById.get(action.id) ?? 0) < maxUsesPerActionId)
       .filter((action) => {
         if (!avoidUndoPairs || !previousAction) return true;
         const previousKey = previousAction.type === 'craft' ? previousAction.outputKey : previousAction.itemKey;
@@ -340,7 +360,8 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
       .filter((action) => totalCost + action.cost <= maxCost)
       .filter((action) => canApplyAction(action, inventory))
       .map((action) => {
-        const maxRepeats = Math.min(getMaxRepeats(action, inventory), 250);
+        const remainingUses = maxUsesPerActionId - (actionUseCountById.get(action.id) ?? 0);
+        const maxRepeats = Math.min(getMaxRepeats(action, inventory), 250, remainingUses);
         if (!Number.isFinite(maxRepeats) || maxRepeats <= 0) return null;
 
         let bestCandidate = null;
@@ -369,6 +390,12 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
       })
       .filter(Boolean)
       .filter((action) => action.stackDelta < 0 || action.type === 'craft');
+
+    if (!candidates.length && currentPhase === 'recycle' && phaseOrder === 'recycle_then_craft') {
+      currentPhase = 'craft';
+      hasSwitchedToCraftPhase = true;
+      continue;
+    }
 
     if (!candidates.length) {
       break;
@@ -405,6 +432,12 @@ function runCompression(initialInventory, stackByItem, actions, options = {}) {
     operations.push(chosen);
     totalCost += chosen.totalActionCost;
     previousAction = chosen;
+    actionUseCountById.set(chosen.id, (actionUseCountById.get(chosen.id) ?? 0) + chosen.repeatCount);
+
+    if (!hasSwitchedToCraftPhase && phaseOrder === 'recycle_then_craft' && chosen.type === 'craft') {
+      hasSwitchedToCraftPhase = true;
+      currentPhase = 'craft';
+    }
 
     const next = applyActionMultiple(chosen, inventory, chosen.repeatCount);
     inventory.clear();
@@ -460,6 +493,7 @@ export default function CkplaceToolsPage() {
   const [result, setResult] = useState(null);
   const [analysisProgress, setAnalysisProgress] = useState({ running: false, percent: 0, label: '' });
   const [expandedThresholds, setExpandedThresholds] = useState({});
+  const [aggressiveStrategy, setAggressiveStrategy] = useState('two-phase');
 
   const defaultModel = useMemo(() => buildArdbActionModel(), []);
   const [customModel, setCustomModel] = useState(null);
@@ -474,6 +508,7 @@ export default function CkplaceToolsPage() {
       const waitForPaint = () => new Promise((resolve) => setTimeout(resolve, 0));
       const rows = analysisRequest.rows;
       const budget = analysisRequest.costBudget;
+      const aggressiveStrategyMode = analysisRequest.aggressiveStrategy ?? 'two-phase';
 
       if (!rows.length) {
         setResult(null);
@@ -499,12 +534,25 @@ export default function CkplaceToolsPage() {
       await waitForPaint();
       if (cancelled) return;
 
-      const aggressive = runCompression(initialInventory, model.stackByItem, [...model.craftActions, ...model.recycleActions], {
-        maxCost: Number.POSITIVE_INFINITY,
-        prioritizeValueLoss: true,
-        avoidUndoPairs: true,
-        allowRecycling: false,
-      });
+      const aggressiveOptions = aggressiveStrategyMode === 'legacy'
+        ? {
+            maxCost: Number.POSITIVE_INFINITY,
+            prioritizeValueLoss: true,
+            avoidUndoPairs: true,
+            allowRecycling: false,
+            phaseOrder: 'mixed',
+          }
+        : {
+            maxCost: Number.POSITIVE_INFINITY,
+            prioritizeValueLoss: true,
+            avoidUndoPairs: true,
+            allowRecycling: true,
+            phaseOrder: 'recycle_then_craft',
+            maxUsesPerActionId: 1,
+            disallowActionAfterPhaseSwitch: true,
+          };
+
+      const aggressive = runCompression(initialInventory, model.stackByItem, [...model.craftActions, ...model.recycleActions], aggressiveOptions);
 
       const aggressiveRows = inventoryToRows(aggressive.inventory, model.displayNameByKey, model.stackByItem);
       const aggressiveSlots = getTotalStacks(aggressive.inventory, model.stackByItem);
@@ -547,6 +595,7 @@ export default function CkplaceToolsPage() {
         aggressiveSlots,
         aggressiveOps,
         aggressiveCost: aggressive.totalCost,
+        aggressiveStrategyMode,
         byThreshold,
       });
       setAnalysisProgress({ running: false, percent: 100, label: 'Compression analysis complete.' });
@@ -600,7 +649,7 @@ export default function CkplaceToolsPage() {
     setParsedRows(parsed);
     setResult(null);
     setExpandedThresholds({});
-    setAnalysisRequest({ rows: parsed, costBudget: parsedBudget, requestedAt: Date.now() });
+    setAnalysisRequest({ rows: parsed, costBudget: parsedBudget, aggressiveStrategy, requestedAt: Date.now() });
   }
 
   return (
@@ -669,6 +718,19 @@ export default function CkplaceToolsPage() {
             onChange={(event) => setCostBudgetText(event.target.value)}
           />
 
+          <label className="block text-sm font-semibold" htmlFor="aggressive-strategy">
+            Aggressive compression strategy
+          </label>
+          <select
+            id="aggressive-strategy"
+            className="w-full md:w-[28rem] border border-slate-300 rounded-md p-2 text-sm"
+            value={aggressiveStrategy}
+            onChange={(event) => setAggressiveStrategy(event.target.value)}
+          >
+            <option value="two-phase">Two-phase aggressive (recycle → craft, one use per action)</option>
+            <option value="legacy">Legacy aggressive (craft-up only, no recycling)</option>
+          </select>
+
           <button
             type="button"
             className="px-4 py-2 rounded-md bg-slate-900 text-white text-sm font-semibold hover:bg-slate-700"
@@ -698,7 +760,11 @@ export default function CkplaceToolsPage() {
               <p className="text-sm text-slate-700">
                 Baseline slots: <strong>{result.baselineSlots}</strong> → Compressed slots: <strong>{result.aggressiveSlots}</strong>
               </p>
-              <p className="text-sm text-slate-700">Strategy: craft-up only (no recycling), with anti-undo protection and value-aware ranking.</p>
+              <p className="text-sm text-slate-700">
+                Strategy: {result.aggressiveStrategyMode === 'legacy'
+                  ? 'craft-up only (no recycling), with anti-undo protection and value-aware ranking.'
+                  : 'recycle first, then craft only, with one-use-per-action, anti-undo protection, and value-aware ranking.'}
+              </p>
               <p className="text-sm text-slate-700">Operations used: {result.aggressiveOps.length}</p>
               <p className="text-sm text-slate-700">Total incurred cost: {result.aggressiveCost.toFixed(0)}</p>
               <div className="rounded-md bg-slate-50 border border-slate-200 p-3">
