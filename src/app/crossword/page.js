@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 const MIN_SIZE = 8;
 const MAX_SIZE = 18;
@@ -93,6 +93,34 @@ function cellKey(row, col) {
   return `${row}-${col}`;
 }
 
+function directionStep(delta) {
+  if (delta === 0) return 0;
+  return delta > 0 ? 1 : -1;
+}
+
+function selectedLine(start, end) {
+  const rowDelta = end[0] - start[0];
+  const colDelta = end[1] - start[1];
+  const absRow = Math.abs(rowDelta);
+  const absCol = Math.abs(colDelta);
+  const sameRow = rowDelta === 0;
+  const sameCol = colDelta === 0;
+  const diagonal = absRow === absCol;
+
+  if (!sameRow && !sameCol && !diagonal) {
+    return null;
+  }
+
+  const length = Math.max(absRow, absCol) + 1;
+  const stepRow = directionStep(rowDelta);
+  const stepCol = directionStep(colDelta);
+
+  return Array.from({ length }, (_, offset) => [
+    start[0] + (stepRow * offset),
+    start[1] + (stepCol * offset),
+  ]);
+}
+
 export default function CrosswordPage() {
   const demosHref = process.env.NODE_ENV === 'production' ? '/Demos' : '/';
   const [size, setSize] = useState(12);
@@ -101,6 +129,9 @@ export default function CrosswordPage() {
   const [foundWords, setFoundWords] = useState([]);
   const [selectionStart, setSelectionStart] = useState(null);
   const [selectionEnd, setSelectionEnd] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const draggedRef = useRef(false);
+  const suppressClickRef = useRef(false);
   const [status, setStatus] = useState('Find the hidden words by selecting start and end letters.');
 
   const foundSet = useMemo(() => new Set(foundWords), [foundWords]);
@@ -123,24 +154,25 @@ export default function CrosswordPage() {
     setStatus('New puzzle generated. Start searching!');
   }
 
-  function handleSelect(row, col) {
-    if (!selectionStart) {
-      setSelectionStart([row, col]);
-      setSelectionEnd(null);
+  function applySelection(start, end) {
+    const line = selectedLine(start, end);
+    if (!line) {
+      setStatus('Selections must be horizontal, vertical, or diagonal.');
       return;
     }
 
-    const start = selectionStart;
-    const end = [row, col];
-    setSelectionEnd(end);
-
     const matched = game.placements.find((placement) => {
       if (foundSet.has(placement.word)) return false;
-      const first = placement.cells[0];
-      const last = placement.cells[placement.cells.length - 1];
-      const forward = start[0] === first[0] && start[1] === first[1] && end[0] === last[0] && end[1] === last[1];
-      const backward = start[0] === last[0] && start[1] === last[1] && end[0] === first[0] && end[1] === first[1];
-      return forward || backward;
+      const sameLength = placement.cells.length === line.length;
+      if (!sameLength) return false;
+
+      const forward = placement.cells.every(([row, col], index) => row === line[index][0] && col === line[index][1]);
+      if (forward) return true;
+
+      return placement.cells.every(([row, col], index) => {
+        const reversedIndex = line.length - 1 - index;
+        return row === line[reversedIndex][0] && col === line[reversedIndex][1];
+      });
     });
 
     if (matched) {
@@ -159,6 +191,48 @@ export default function CrosswordPage() {
     setSelectionEnd(null);
   }
 
+  function handleSelect(row, col) {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+
+    if (!selectionStart) {
+      setSelectionStart([row, col]);
+      setSelectionEnd([row, col]);
+      return;
+    }
+
+    applySelection(selectionStart, [row, col]);
+  }
+
+  function handlePointerDown(row, col) {
+    draggedRef.current = false;
+    setIsDragging(true);
+    setSelectionStart([row, col]);
+    setSelectionEnd([row, col]);
+  }
+
+  function handlePointerEnter(row, col) {
+    if (!isDragging || !selectionStart) return;
+    if (selectionEnd?.[0] !== row || selectionEnd?.[1] !== col) {
+      draggedRef.current = true;
+    }
+    setSelectionEnd([row, col]);
+  }
+
+  function handlePointerUp(row, col) {
+    if (!isDragging || !selectionStart) return;
+    setIsDragging(false);
+
+    if (!draggedRef.current) {
+      return;
+    }
+
+    suppressClickRef.current = true;
+    applySelection(selectionStart, [row, col]);
+  }
+
   function solveGame() {
     setFoundWords(game.words);
     setSelectionStart(null);
@@ -167,11 +241,13 @@ export default function CrosswordPage() {
   }
 
   const currentSelection = new Set();
-  if (selectionStart) {
+  if (selectionStart && selectionEnd) {
+    const line = selectedLine(selectionStart, selectionEnd);
+    if (line) {
+      line.forEach(([row, col]) => currentSelection.add(cellKey(row, col)));
+    }
+  } else if (selectionStart) {
     currentSelection.add(cellKey(selectionStart[0], selectionStart[1]));
-  }
-  if (selectionEnd) {
-    currentSelection.add(cellKey(selectionEnd[0], selectionEnd[1]));
   }
 
   return (
@@ -201,7 +277,7 @@ export default function CrosswordPage() {
         <ul className="list-disc pl-5 space-y-2 text-slate-700">
           <li>Choose a board size and number of hidden words, then start a new game.</li>
           <li>Words can appear horizontally, vertically, and diagonally in either direction.</li>
-          <li>Click a start cell and then an end cell to select an entire line.</li>
+          <li>Click or drag from a start cell to an end cell to select an entire line.</li>
           <li>If your line matches a hidden word, it is marked as solved.</li>
           <li>Use <strong>Solve</strong> for automated completion at any time.</li>
         </ul>
@@ -263,6 +339,8 @@ export default function CrosswordPage() {
           <div
             className="grid gap-1"
             style={{ gridTemplateColumns: `repeat(${game.size}, minmax(0, 36px))` }}
+            onPointerUp={() => setIsDragging(false)}
+            onPointerLeave={() => setIsDragging(false)}
           >
             {game.grid.map((row, rowIndex) => row.map((cell, colIndex) => {
               const key = cellKey(rowIndex, colIndex);
@@ -274,6 +352,9 @@ export default function CrosswordPage() {
                   key={key}
                   type="button"
                   onClick={() => handleSelect(rowIndex, colIndex)}
+                  onPointerDown={() => handlePointerDown(rowIndex, colIndex)}
+                  onPointerEnter={() => handlePointerEnter(rowIndex, colIndex)}
+                  onPointerUp={() => handlePointerUp(rowIndex, colIndex)}
                   className="h-9 w-9 border rounded font-semibold text-slate-800"
                   style={{
                     backgroundColor: isSolved ? '#86efac' : (isSelected ? '#bfdbfe' : '#ffffff'),
