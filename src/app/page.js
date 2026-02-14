@@ -113,6 +113,12 @@ export default function Home() {
       description: 'Promote through ranks with strict digit-math replacements',
       previewImage: '/syndicate-preview.svg',
     },
+    {
+      route: 'crossword',
+      title: 'Crossword Puzzle',
+      description: 'Find hidden words in horizontal, vertical, and diagonal directions',
+      previewImage: '/crossword-preview.svg',
+    },
   ];
 
   return (
