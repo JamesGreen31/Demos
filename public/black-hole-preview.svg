@@ -1,0 +1,14 @@
+<svg width="640" height="360" viewBox="0 0 640 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="360" rx="24" fill="#F8FAFC"/>
+  <circle cx="320" cy="68" r="24" fill="#111827"/>
+  <circle cx="286" cy="122" r="22" fill="#FCA5A5"/>
+  <circle cx="354" cy="122" r="22" fill="#93C5FD"/>
+  <circle cx="252" cy="176" r="20" fill="#86EFAC"/>
+  <circle cx="320" cy="176" r="20" fill="#FCA5A5"/>
+  <circle cx="388" cy="176" r="20" fill="#93C5FD"/>
+  <circle cx="218" cy="228" r="18" fill="#BFDBFE"/>
+  <circle cx="286" cy="228" r="18" fill="#FECACA"/>
+  <circle cx="354" cy="228" r="18" fill="#BBF7D0"/>
+  <circle cx="422" cy="228" r="18" fill="#BFDBFE"/>
+  <text x="320" y="318" text-anchor="middle" fill="#0F172A" font-size="34" font-family="Arial, sans-serif" font-weight="700">Black Hole</text>
+</svg>

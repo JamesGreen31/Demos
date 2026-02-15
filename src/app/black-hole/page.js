@@ -1,0 +1,381 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+
+const PLAYER_CONFIGS = {
+  2: [
+    { key: 'red', label: 'Red' },
+    { key: 'blue', label: 'Blue' },
+  ],
+  3: [
+    { key: 'red', label: 'Red' },
+    { key: 'blue', label: 'Blue' },
+    { key: 'green', label: 'Green' },
+  ],
+};
+
+const COLOR_STYLES = {
+  red: {
+    ring: 'ring-red-500',
+    number: 'text-red-700',
+    fill: 'bg-red-500/15',
+  },
+  blue: {
+    ring: 'ring-blue-500',
+    number: 'text-blue-700',
+    fill: 'bg-blue-500/15',
+  },
+  green: {
+    ring: 'ring-emerald-500',
+    number: 'text-emerald-700',
+    fill: 'bg-emerald-500/15',
+  },
+};
+
+function createBoard(height) {
+  return Array.from({ length: height }, (_, row) =>
+    Array.from({ length: row + 1 }, (_, col) => ({
+      id: `${row}-${col}`,
+      row,
+      col,
+      move: null,
+    })),
+  );
+}
+
+function getNeighbors(row, col, height) {
+  const candidates = [
+    [row, col - 1],
+    [row, col + 1],
+    [row - 1, col - 1],
+    [row - 1, col],
+    [row + 1, col],
+    [row + 1, col + 1],
+  ];
+
+  return candidates.filter(([r, c]) => r >= 0 && r < height && c >= 0 && c <= r);
+}
+
+function initialState(playerCount) {
+  const players = PLAYER_CONFIGS[playerCount];
+  const height = playerCount === 2 ? 6 : 7;
+  const nextValues = Object.fromEntries(players.map((player) => [player.key, 1]));
+
+  return {
+    playerCount,
+    players,
+    board: createBoard(height),
+    height,
+    turnIndex: 0,
+    nextValues,
+    selected: null,
+    hovered: null,
+    gameOver: false,
+    blackHole: null,
+    connectedCells: [],
+    scores: Object.fromEntries(players.map((player) => [player.key, 0])),
+    winnerKeys: [],
+  };
+}
+
+export default function BlackHolePage() {
+  const demosHref = process.env.NODE_ENV === 'production' ? '/Demos' : '/';
+  const [playerCount, setPlayerCount] = useState(2);
+  const [started, setStarted] = useState(false);
+  const [state, setState] = useState(() => initialState(2));
+
+  useEffect(() => {
+    document.title = 'Black Hole';
+  }, []);
+
+  const currentPlayer = state.players[state.turnIndex];
+
+  const openCells = useMemo(
+    () => state.board.flat().filter((cell) => !cell.move),
+    [state.board],
+  );
+
+  const blackHolePreview = useMemo(() => {
+    if (state.gameOver || !state.selected || openCells.length !== 2) return null;
+    return openCells.find((cell) => cell.id !== state.selected.id) ?? null;
+  }, [openCells, state.gameOver, state.selected]);
+
+  const statusText = useMemo(() => {
+    if (!started) return 'Choose your player count and start the game.';
+    if (state.gameOver) {
+      if (state.winnerKeys.length > 1) {
+        return `Game over! Tie: ${state.winnerKeys.join(' + ')} at ${state.scores[state.winnerKeys[0]]}.`;
+      }
+      return `Game over! ${state.winnerKeys[0]} wins with ${state.scores[state.winnerKeys[0]]}.`;
+    }
+
+    const value = state.nextValues[currentPlayer.key];
+    return `${currentPlayer.label} turn — place ${value}.`;
+  }, [currentPlayer, started, state]);
+
+  function startGame() {
+    setState(initialState(playerCount));
+    setStarted(true);
+  }
+
+  function resetGame() {
+    if (!window.confirm('Are you sure you want to start a new game?')) return;
+    setState(initialState(playerCount));
+    setStarted(false);
+  }
+
+  function handleCellClick(cell) {
+    if (!started || state.gameOver || cell.move) return;
+
+    setState((prev) => {
+      if (prev.selected?.id === cell.id) {
+        return { ...prev, selected: null };
+      }
+      return { ...prev, selected: { row: cell.row, col: cell.col, id: cell.id } };
+    });
+  }
+
+  function commitMove() {
+    if (!started || state.gameOver || !state.selected) return;
+
+    setState((prev) => {
+      const player = prev.players[prev.turnIndex];
+      const placement = prev.nextValues[player.key];
+
+      const nextBoard = prev.board.map((row) =>
+        row.map((cell) => {
+          if (cell.id !== prev.selected.id) return cell;
+          return {
+            ...cell,
+            move: {
+              playerKey: player.key,
+              playerLabel: player.label,
+              value: placement,
+            },
+          };
+        }),
+      );
+
+      const nextValues = {
+        ...prev.nextValues,
+        [player.key]: placement + 1,
+      };
+
+      const nextOpen = nextBoard.flat().filter((cell) => !cell.move);
+      if (nextOpen.length === 1) {
+        const blackHole = nextOpen[0];
+        const connectedCells = getNeighbors(blackHole.row, blackHole.col, prev.height)
+          .map(([row, col]) => nextBoard[row][col])
+          .filter((cell) => cell.move);
+
+        const scores = Object.fromEntries(prev.players.map((entry) => [entry.key, 0]));
+        for (const connected of connectedCells) {
+          scores[connected.move.playerKey] += connected.move.value;
+        }
+
+        const lowest = Math.min(...Object.values(scores));
+        const winnerKeys = prev.players
+          .map((entry) => entry.key)
+          .filter((key) => scores[key] === lowest);
+
+        return {
+          ...prev,
+          board: nextBoard,
+          nextValues,
+          selected: null,
+          hovered: null,
+          gameOver: true,
+          blackHole,
+          connectedCells,
+          scores,
+          winnerKeys,
+        };
+      }
+
+      return {
+        ...prev,
+        board: nextBoard,
+        nextValues,
+        turnIndex: (prev.turnIndex + 1) % prev.playerCount,
+        selected: null,
+        hovered: null,
+      };
+    });
+  }
+
+  return (
+    <main className="min-h-screen p-6 md:p-8 flex flex-col items-center gap-6">
+      <div className="w-full max-w-6xl flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => window.location.assign(demosHref)}
+          className="px-3 py-2 rounded bg-slate-200 hover:bg-slate-300 text-slate-800"
+        >
+          ← Back
+        </button>
+        <button
+          type="button"
+          onClick={resetGame}
+          className="px-3 py-2 rounded bg-slate-900 text-white hover:bg-slate-700"
+        >
+          Reset Game
+        </button>
+      </div>
+
+      <h1 className="text-3xl font-bold text-center">Black Hole</h1>
+
+      <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold mb-2">Description</h2>
+        <p className="text-slate-700">
+          Black Hole is a positional-number strategy game played on an upside-down triangular pyramid of circles.
+          Players take turns claiming exactly one open circle and place their own rising number sequence
+          (1, 2, 3, and so on for that player). Once a circle is confirmed, it is permanently locked.
+          When one circle remains, it becomes the black hole. Each player totals only the numbers in circles
+          directly connected to that black hole, and the lowest total wins.
+        </p>
+      </section>
+
+      <section className="w-full max-w-6xl rounded-xl border border-blue-200 bg-[#eef6ff] p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold mb-3">How to Play</h2>
+        <ul className="list-disc pl-5 space-y-2 text-slate-700">
+          <li>Choose 2 players (height 6) or 3 players (height 7), then start.</li>
+          <li>On each turn, pick one open circle and confirm the move.</li>
+          <li>Each player places increasing numbers: 1, 2, 3, and so on for their own turns.</li>
+          <li>Placed circles lock immediately. No undo moves are allowed.</li>
+          <li>When one circle remains, it becomes the black hole.</li>
+          <li>Add the numbers in circles touching the black hole. Lowest total wins.</li>
+        </ul>
+      </section>
+
+      {!started && (
+        <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-2xl font-semibold mb-3">Configuration</h2>
+          <div className="flex flex-wrap gap-4 items-center">
+            <label className="font-medium text-slate-700" htmlFor="playerCount">Player count</label>
+            <select
+              id="playerCount"
+              value={playerCount}
+              onChange={(event) => setPlayerCount(Number(event.target.value))}
+              className="rounded border border-slate-300 px-3 py-2"
+            >
+              <option value={2}>2 players</option>
+              <option value={3}>3 players</option>
+            </select>
+            <button
+              type="button"
+              onClick={startGame}
+              className="px-4 py-2 rounded bg-emerald-600 text-white hover:bg-emerald-500"
+            >
+              Start Game
+            </button>
+          </div>
+        </section>
+      )}
+
+      <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col items-center gap-4">
+        <p className="text-lg font-semibold text-slate-800">{statusText}</p>
+
+        {started && !state.gameOver && (
+          <button
+            type="button"
+            onClick={commitMove}
+            disabled={!state.selected}
+            className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-45 disabled:cursor-not-allowed"
+          >
+            Confirm Move
+          </button>
+        )}
+
+        {started && (
+          <div className="flex flex-col gap-2 items-center" onMouseLeave={() => setState((prev) => ({ ...prev, hovered: null }))}>
+            {state.board.map((row) => (
+              <div key={`row-${row[0].row}`} className="flex justify-center gap-2">
+                {row.map((cell) => {
+                  const isSelected = state.selected?.id === cell.id;
+                  const isHovered = state.hovered?.id === cell.id;
+                  const previewActive = !cell.move && (isSelected || (!state.selected && isHovered));
+                  const previewColor = currentPlayer ? COLOR_STYLES[currentPlayer.key] : null;
+                  const showBlackHolePreview = blackHolePreview?.id === cell.id;
+                  const isBlackHole = state.blackHole?.id === cell.id;
+                  const isConnected = state.connectedCells.some((connected) => connected.id === cell.id);
+
+                  let circleClass = 'relative h-14 w-14 rounded-full border-2 transition-all duration-150 flex items-center justify-center font-bold text-lg select-none';
+                  let innerClass = 'absolute inset-0 rounded-full';
+                  let numberClass = 'relative z-10 text-slate-700';
+                  let shownNumber = '';
+
+                  if (cell.move) {
+                    const tone = COLOR_STYLES[cell.move.playerKey];
+                    circleClass += ` border-black ${tone.fill}`;
+                    numberClass = `relative z-10 ${tone.number}`;
+                    shownNumber = cell.move.value;
+                  } else {
+                    circleClass += ' border-slate-300 bg-slate-50';
+                    if (!state.gameOver) {
+                      circleClass += ' hover:border-slate-400';
+                    }
+                  }
+
+                  if (previewActive && previewColor) {
+                    circleClass += ` ring-2 ${previewColor.ring} border-transparent`;
+                    numberClass = `relative z-10 ${previewColor.number} opacity-30`;
+                    shownNumber = state.nextValues[currentPlayer.key];
+                  }
+
+                  if (showBlackHolePreview) {
+                    innerClass += ' bg-slate-900/20';
+                  }
+
+                  if (isBlackHole) {
+                    innerClass += ' bg-black';
+                    numberClass = 'relative z-10 text-white text-xs tracking-wide';
+                    shownNumber = '';
+                  }
+
+                  if (isConnected) {
+                    circleClass += ' ring-4 ring-amber-300';
+                  }
+
+                  return (
+                    <button
+                      key={cell.id}
+                      type="button"
+                      onClick={() => handleCellClick(cell)}
+                      onMouseEnter={() => {
+                        if (!cell.move && started && !state.gameOver) {
+                          setState((prev) => ({ ...prev, hovered: { id: cell.id } }));
+                        }
+                      }}
+                      className={circleClass}
+                    >
+                      <span className={innerClass} />
+                      <span className={numberClass}>{shownNumber}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {started && !state.gameOver && (
+          <p className="text-sm text-slate-600">Open circles left: {openCells.length}.</p>
+        )}
+
+        {state.gameOver && (
+          <div className="w-full max-w-xl rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <h3 className="text-xl font-semibold mb-3">Scoreboard (lowest wins)</h3>
+            <ul className="space-y-2">
+              {state.players.map((player) => (
+                <li key={player.key} className="flex items-center justify-between rounded bg-white px-3 py-2 border border-slate-200">
+                  <span className="font-medium">{player.label}</span>
+                  <span className="font-bold">{state.scores[player.key]}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}

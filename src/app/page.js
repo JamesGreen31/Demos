@@ -119,6 +119,12 @@ export default function Home() {
       description: 'Find hidden words in horizontal, vertical, and diagonal directions',
       previewImage: '/crossword-preview.svg',
     },
+    {
+      route: 'black-hole',
+      title: 'Black Hole',
+      description: 'Place rising values into circles and win with the lowest black-hole sum',
+      previewImage: '/black-hole-preview.svg',
+    },
   ];
 
   return (
