@@ -265,7 +265,8 @@ export default function CrosswordPage() {
     applySelection(selectionStart, [row, col]);
   }
 
-  function handlePointerDown(row, col) {
+  function handlePointerDown(event, row, col) {
+    event.currentTarget.setPointerCapture?.(event.pointerId);
     draggedRef.current = false;
     setIsDragging(true);
     setSelectionStart([row, col]);
@@ -307,8 +308,8 @@ export default function CrosswordPage() {
     updateDragSelection(button);
   }
 
-  function handlePointerUp(row, col) {
-    if (!isDragging || !selectionStart) return;
+  function finalizeDragSelection() {
+    if (!isDragging || !selectionStart || !selectionEnd) return;
     setIsDragging(false);
 
     if (!draggedRef.current) {
@@ -316,7 +317,7 @@ export default function CrosswordPage() {
     }
 
     suppressClickRef.current = true;
-    applySelection(selectionStart, [row, col]);
+    applySelection(selectionStart, selectionEnd);
   }
 
   function solveGame() {
@@ -451,7 +452,7 @@ export default function CrosswordPage() {
               className="grid gap-1 touch-none select-none"
               style={{ gridTemplateColumns: `repeat(${game.size}, minmax(0, ${boardCellSize}))` }}
               onPointerMove={handleGridPointerMove}
-              onPointerUp={() => setIsDragging(false)}
+              onPointerUp={finalizeDragSelection}
               onPointerLeave={() => setIsDragging(false)}
               onPointerCancel={() => setIsDragging(false)}
             >
@@ -465,9 +466,8 @@ export default function CrosswordPage() {
                   key={key}
                   type="button"
                   onClick={() => handleSelect(rowIndex, colIndex)}
-                  onPointerDown={() => handlePointerDown(rowIndex, colIndex)}
+                  onPointerDown={(event) => handlePointerDown(event, rowIndex, colIndex)}
                   onPointerEnter={() => handlePointerEnter(rowIndex, colIndex)}
-                  onPointerUp={() => handlePointerUp(rowIndex, colIndex)}
                   data-cell="true"
                   data-row={rowIndex}
                   data-col={colIndex}
