@@ -300,6 +300,8 @@ export default function CrosswordPage() {
     setStatus('Solved automatically. Use New Game to play another puzzle.');
   }
 
+  const boardCellSize = size <= 10 ? '36px' : size <= 14 ? '32px' : '28px';
+
   const currentSelection = new Set();
   if (selectionStart && selectionEnd) {
     const line = selectedLine(selectionStart, selectionEnd);
@@ -347,8 +349,8 @@ export default function CrosswordPage() {
 
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-4">Controls</h2>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2">
             <span className="font-semibold">Size</span>
             <input
               type="number"
@@ -360,7 +362,7 @@ export default function CrosswordPage() {
             />
           </label>
 
-          <label className="flex items-center gap-2">
+          <label className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2">
             <span className="font-semibold">Words</span>
             <input
               type="number"
@@ -372,7 +374,7 @@ export default function CrosswordPage() {
             />
           </label>
 
-          <label className="flex items-center gap-2">
+          <label className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2">
             <span className="font-semibold">Mode</span>
             <select
               value={mode}
@@ -417,12 +419,14 @@ export default function CrosswordPage() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-5 items-start">
-          <div
-            className="grid gap-1"
-            style={{ gridTemplateColumns: `repeat(${game.size}, minmax(0, 36px))` }}
-            onPointerUp={() => setIsDragging(false)}
-            onPointerLeave={() => setIsDragging(false)}
-          >
+          <div className="w-full overflow-auto rounded-lg border border-slate-200 p-2">
+            <div
+              className="grid gap-1 touch-none select-none"
+              style={{ gridTemplateColumns: `repeat(${game.size}, minmax(0, ${boardCellSize}))` }}
+              onPointerUp={() => setIsDragging(false)}
+              onPointerLeave={() => setIsDragging(false)}
+              onPointerCancel={() => setIsDragging(false)}
+            >
             {game.grid.map((row, rowIndex) => row.map((cell, colIndex) => {
               const key = cellKey(rowIndex, colIndex);
               const isSolved = solvedCellSet.has(key);
@@ -436,7 +440,7 @@ export default function CrosswordPage() {
                   onPointerDown={() => handlePointerDown(rowIndex, colIndex)}
                   onPointerEnter={() => handlePointerEnter(rowIndex, colIndex)}
                   onPointerUp={() => handlePointerUp(rowIndex, colIndex)}
-                  className="h-9 w-9 border rounded font-semibold text-slate-800"
+                  className="h-8 w-8 sm:h-9 sm:w-9 border rounded font-semibold text-slate-800 touch-none"
                   style={{
                     backgroundColor: isSolved ? '#86efac' : (isSelected ? '#bfdbfe' : '#ffffff'),
                   }}
@@ -446,6 +450,7 @@ export default function CrosswordPage() {
                 </button>
               );
             }))}
+            </div>
           </div>
 
           <div className="min-w-56">
