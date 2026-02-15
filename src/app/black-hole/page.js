@@ -318,7 +318,7 @@ export default function BlackHolePage() {
                   if (isBlackHole) {
                     innerClass += ' bg-black';
                     numberClass = 'relative z-10 text-white text-xs tracking-wide';
-                    shownNumber = 'BH';
+                    shownNumber = '';
                   }
 
                   if (isConnected) {
