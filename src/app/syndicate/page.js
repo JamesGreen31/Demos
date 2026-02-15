@@ -409,10 +409,6 @@ export default function SyndicatePage() {
         >
           ← Back
         </button>
-        <div className="text-right text-sm text-slate-700">
-          <p>Score: <span className="font-semibold">{state.sacrificedCount}</span> sacrifices</p>
-          <p className="text-xs">Lower is better.</p>
-        </div>
       </div>
 
       <h1 className="text-3xl font-bold text-center">Syndicate Demo</h1>
@@ -567,14 +563,19 @@ export default function SyndicatePage() {
       </section>
 
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
-        <p className="font-medium text-slate-800">
-          {state.gameState === 'won' && '🎉 Victory!'}
-          {state.gameState === 'lost' && '💥 Run ended.'}
-          {state.gameState === 'playing' && state.message}
-          {state.gameState !== 'playing' && ` ${state.message}`}
-          {state.pendingPromotion && state.sacrificeRank !== null
-            && ` Promoted ${cardLabel(state.pendingPromotion.card)} from Rank ${state.pendingPromotion.from} to Rank ${state.pendingPromotion.to}.`}
-        </p>
+        <div>
+          <p className="font-medium text-slate-800">
+            {state.gameState === 'won' && '🎉 Victory!'}
+            {state.gameState === 'lost' && '💥 Run ended.'}
+            {state.gameState === 'playing' && state.message}
+            {state.gameState !== 'playing' && ` ${state.message}`}
+            {state.pendingPromotion && state.sacrificeRank !== null
+              && ` Promoted ${cardLabel(state.pendingPromotion.card)} from Rank ${state.pendingPromotion.from} to Rank ${state.pendingPromotion.to}.`}
+          </p>
+          <p className="mt-2 text-sm text-slate-700">
+            Score: <span className="font-semibold">{state.sacrificedCount}</span> sacrifices <span className="text-xs">(lower is better)</span>
+          </p>
+        </div>
 
         <div className="flex gap-2">
           <button
