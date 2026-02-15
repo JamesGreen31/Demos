@@ -115,8 +115,8 @@ export default function Home() {
     },
     {
       route: 'crossword',
-      title: 'Crossword Puzzle',
-      description: 'Find hidden words in horizontal, vertical, and diagonal directions',
+      title: 'Word Search',
+      description: 'Find hidden words across horizontal, vertical, and diagonal lines',
       previewImage: '/crossword-preview.svg',
     },
     {

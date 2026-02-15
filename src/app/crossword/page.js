@@ -179,6 +179,9 @@ export default function CrosswordPage() {
   const [isDragging, setIsDragging] = useState(false);
   const draggedRef = useRef(false);
   const suppressClickRef = useRef(false);
+  const selectionStartRef = useRef(null);
+  const selectionEndRef = useRef(null);
+  const gridRef = useRef(null);
   const [status, setStatus] = useState('Find the hidden words by selecting start and end letters.');
 
   const foundSet = useMemo(() => new Set(foundWords), [foundWords]);
@@ -198,6 +201,8 @@ export default function CrosswordPage() {
     setFoundWords([]);
     setSelectionStart(null);
     setSelectionEnd(null);
+    selectionStartRef.current = null;
+    selectionEndRef.current = null;
     setStatus(`New ${nextMode} puzzle generated. Start searching!`);
   }
 
@@ -243,6 +248,8 @@ export default function CrosswordPage() {
 
     setSelectionStart(null);
     setSelectionEnd(null);
+    selectionStartRef.current = null;
+    selectionEndRef.current = null;
   }
 
   function handleSelect(row, col) {
@@ -258,6 +265,8 @@ export default function CrosswordPage() {
     if (!selectionStart) {
       setSelectionStart([row, col]);
       setSelectionEnd([row, col]);
+      selectionStartRef.current = [row, col];
+      selectionEndRef.current = [row, col];
       return;
     }
 
@@ -267,36 +276,88 @@ export default function CrosswordPage() {
   function handlePointerDown(row, col) {
     draggedRef.current = false;
     setIsDragging(true);
-    if (!selectionStart) {
-      setSelectionStart([row, col]);
-      setSelectionEnd([row, col]);
-    }
+    setSelectionStart([row, col]);
+    setSelectionEnd([row, col]);
+    selectionStartRef.current = [row, col];
+    selectionEndRef.current = [row, col];
   }
 
-  function handlePointerEnter(row, col) {
-    if (!isDragging || !selectionStart) return;
+  function updateDragSelection(target) {
+    if (!target || !selectionStartRef.current) return;
+
+    const row = Number(target.dataset.row);
+    const col = Number(target.dataset.col);
+    if (Number.isNaN(row) || Number.isNaN(col)) return;
+
     if (selectionEnd?.[0] !== row || selectionEnd?.[1] !== col) {
       draggedRef.current = true;
     }
     setSelectionEnd([row, col]);
+    selectionEndRef.current = [row, col];
+  }
+
+  function findCellButtonFromPoint(clientX, clientY) {
+    const element = document.elementFromPoint(clientX, clientY);
+    if (!element) return null;
+
+    const button = element.closest('button[data-cell="true"]');
+    if (!button || !gridRef.current?.contains(button)) return null;
+    return button;
+  }
+
+  function handleGridPointerMove(event) {
+    if (!isDragging || !selectionStartRef.current) return;
+
+    const button = findCellButtonFromPoint(event.clientX, event.clientY);
+    updateDragSelection(button);
+  }
+
+  function handlePointerEnter(row, col) {
+    if (!isDragging) return;
+    const button = gridRef.current?.querySelector(`button[data-row="${row}"][data-col="${col}"]`);
+    updateDragSelection(button);
+  }
+
+
+  function handleGridPointerUp(event) {
+    if (!isDragging || !selectionStartRef.current) return;
+
+    const button = findCellButtonFromPoint(event.clientX, event.clientY);
+    if (button) {
+      updateDragSelection(button);
+    }
+
+    handlePointerUp(
+      Number(button?.dataset.row ?? selectionStartRef.current[0]),
+      Number(button?.dataset.col ?? selectionStartRef.current[1]),
+    );
   }
 
   function handlePointerUp(row, col) {
-    if (!isDragging || !selectionStart) return;
+    if (!isDragging || !selectionStartRef.current) return;
     setIsDragging(false);
 
-    if (!draggedRef.current) {
+    const startPoint = selectionStartRef.current;
+    const fallbackEndPoint = [row, col];
+    const trackedEndPoint = selectionEndRef.current ?? selectionEnd ?? fallbackEndPoint;
+    const endPoint = (trackedEndPoint[0] === startPoint[0] && trackedEndPoint[1] === startPoint[1])
+      ? fallbackEndPoint
+      : trackedEndPoint;
+    const moved = endPoint[0] !== startPoint[0] || endPoint[1] !== startPoint[1];
+    if (!draggedRef.current && !moved) {
       return;
     }
 
     suppressClickRef.current = true;
-    applySelection(selectionStart, [row, col]);
+    applySelection(startPoint, endPoint);
   }
 
   function solveGame() {
     setFoundWords(game.words);
     setSelectionStart(null);
     setSelectionEnd(null);
+    selectionStartRef.current = null;
+    selectionEndRef.current = null;
     setStatus('Solved automatically. Use New Game to play another puzzle.');
   }
 
@@ -324,12 +385,12 @@ export default function CrosswordPage() {
         </button>
       </div>
 
-      <h1 className="text-3xl md:text-4xl font-bold text-center">Crossword Puzzle Game</h1>
+      <h1 className="text-3xl md:text-4xl font-bold text-center">Word Search Game</h1>
 
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-3">About the game</h2>
         <p className="text-slate-700">
-          This CKPLACE word-search style crossword now includes two modes.
+          This CKPLACE word-search demo now includes two modes.
           Easy mode places words left-to-right or top-to-bottom with at least one-cell padding between words.
           Hard mode allows touching words in any direction.
         </p>
@@ -421,9 +482,11 @@ export default function CrosswordPage() {
         <div className="flex flex-col lg:flex-row gap-5 items-start">
           <div className="w-full overflow-auto rounded-lg border border-slate-200 p-2">
             <div
+              ref={gridRef}
               className="grid gap-1 touch-none select-none"
               style={{ gridTemplateColumns: `repeat(${game.size}, minmax(0, ${boardCellSize}))` }}
-              onPointerUp={() => setIsDragging(false)}
+              onPointerMove={handleGridPointerMove}
+              onPointerUp={handleGridPointerUp}
               onPointerLeave={() => setIsDragging(false)}
               onPointerCancel={() => setIsDragging(false)}
             >
@@ -440,6 +503,9 @@ export default function CrosswordPage() {
                   onPointerDown={() => handlePointerDown(rowIndex, colIndex)}
                   onPointerEnter={() => handlePointerEnter(rowIndex, colIndex)}
                   onPointerUp={() => handlePointerUp(rowIndex, colIndex)}
+                  data-cell="true"
+                  data-row={rowIndex}
+                  data-col={colIndex}
                   className="h-8 w-8 sm:h-9 sm:w-9 border rounded font-semibold text-slate-800 touch-none"
                   style={{
                     backgroundColor: isSolved ? '#86efac' : (isSelected ? '#bfdbfe' : '#ffffff'),
