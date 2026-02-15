@@ -32,7 +32,7 @@
   <!-- Panel -->
   <g>
     <rect x="170" y="50" width="460" height="400" rx="22"
-          fill="#" stroke="#" stroke-width="4"
+          fill="#F8FAFC" stroke="#BFDBFE" stroke-width="4"
           filter="url(#softShadow)"/>
 
     <g transform="translate(85,75)">
