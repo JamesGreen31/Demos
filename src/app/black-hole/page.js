@@ -225,6 +225,17 @@ export default function BlackHolePage() {
       <h1 className="text-3xl font-bold text-center">Black Hole</h1>
 
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold mb-2">Description</h2>
+        <p className="text-slate-700">
+          Black Hole is a positional-number strategy game played on an upside-down triangular pyramid of circles.
+          Players take turns claiming exactly one open circle and place their own rising number sequence
+          (1, 2, 3, and so on for that player). Once a circle is confirmed, it is permanently locked.
+          When one circle remains, it becomes the black hole. Each player totals only the numbers in circles
+          directly connected to that black hole, and the lowest total wins.
+        </p>
+      </section>
+
+      <section className="w-full max-w-6xl rounded-xl border border-blue-200 bg-[#eef6ff] p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-3">How to Play</h2>
         <ul className="list-disc pl-5 space-y-2 text-slate-700">
           <li>Choose 2 players (height 6) or 3 players (height 7), then start.</li>
