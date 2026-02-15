@@ -18,17 +18,23 @@ const COLOR_STYLES = {
   red: {
     ring: 'ring-red-500',
     number: 'text-red-700',
-    fill: 'bg-red-500/15',
+    fill: 'bg-red-100',
+    winnerRing: 'ring-red-500/95',
+    winnerGlow: 'shadow-[0_0_26px_rgba(239,68,68,0.75)]',
   },
   blue: {
     ring: 'ring-blue-500',
     number: 'text-blue-700',
-    fill: 'bg-blue-500/15',
+    fill: 'bg-blue-100',
+    winnerRing: 'ring-blue-500/95',
+    winnerGlow: 'shadow-[0_0_26px_rgba(59,130,246,0.75)]',
   },
   green: {
     ring: 'ring-emerald-500',
     number: 'text-emerald-700',
-    fill: 'bg-emerald-500/15',
+    fill: 'bg-emerald-100',
+    winnerRing: 'ring-emerald-500/95',
+    winnerGlow: 'shadow-[0_0_26px_rgba(16,185,129,0.75)]',
   },
 };
 
@@ -121,18 +127,23 @@ export default function BlackHolePage() {
   const connectedLineSegments = useMemo(() => {
     if (!state.blackHole || !state.gameOver) return [];
 
-    const blackHolePoint = {
-      x: ((state.height - (state.blackHole.row + 1)) * cellPitch) / 2 + state.blackHole.col * cellPitch + cellRadius,
-      y: state.blackHole.row * cellPitch + cellRadius,
-    };
+    const getCellCenter = (cell) => ({
+      x: ((state.height - (cell.row + 1)) * cellPitch) / 2 + cell.col * cellPitch + cellRadius,
+      y: cell.row * cellPitch + cellRadius,
+    });
 
-    return state.connectedCells.map((cell) => ({
-      id: cell.id,
-      x1: ((state.height - (cell.row + 1)) * cellPitch) / 2 + cell.col * cellPitch + cellRadius,
-      y1: cell.row * cellPitch + cellRadius,
-      x2: blackHolePoint.x,
-      y2: blackHolePoint.y,
-    }));
+    const blackHoleCenter = getCellCenter(state.blackHole);
+
+    return state.connectedCells.map((cell) => {
+      const center = getCellCenter(cell);
+      return {
+        id: cell.id,
+        x1: center.x,
+        y1: center.y,
+        x2: blackHoleCenter.x,
+        y2: blackHoleCenter.y,
+      };
+    });
   }, [state.blackHole, state.connectedCells, state.gameOver, state.height]);
 
   function startGame() {
@@ -320,7 +331,7 @@ export default function BlackHolePage() {
             onMouseLeave={() => setState((prev) => ({ ...prev, hovered: null }))}
           >
             {connectedLineSegments.length > 0 && (
-              <svg className="pointer-events-none absolute inset-0" width={boardWidth} height={boardHeight}>
+              <svg className="pointer-events-none absolute inset-0 z-0" width={boardWidth} height={boardHeight}>
                 {connectedLineSegments.map((line) => (
                   <line
                     key={line.id}
@@ -328,7 +339,7 @@ export default function BlackHolePage() {
                     y1={line.y1}
                     x2={line.x2}
                     y2={line.y2}
-                    className="stroke-slate-500/70"
+                    className="stroke-black/65"
                     strokeWidth="4"
                     strokeLinecap="round"
                   />
@@ -337,7 +348,7 @@ export default function BlackHolePage() {
             )}
 
             {state.board.map((row) => (
-              <div key={`row-${row[0].row}`} className="flex justify-center gap-2">
+              <div key={`row-${row[0].row}`} className="relative z-10 flex justify-center gap-3">
                 {row.map((cell) => {
                   const isSelected = state.selected?.id === cell.id;
                   const isHovered = state.hovered?.id === cell.id;
@@ -346,6 +357,7 @@ export default function BlackHolePage() {
                   const showBlackHolePreview = blackHolePreview?.id === cell.id;
                   const isBlackHole = state.blackHole?.id === cell.id;
                   const isConnected = state.connectedCells.some((connected) => connected.id === cell.id);
+                  const connectedTone = isConnected && cell.move ? COLOR_STYLES[cell.move.playerKey] : null;
 
                   let circleClass = 'relative h-14 w-14 rounded-full border-2 transition-all duration-150 flex items-center justify-center font-bold text-lg select-none';
                   let innerClass = 'absolute inset-0 rounded-full';
@@ -380,8 +392,12 @@ export default function BlackHolePage() {
                     shownNumber = '';
                   }
 
-                  if (isConnected) {
-                    circleClass += ' ring-4 ring-slate-400/70 shadow-[0_0_20px_rgba(148,163,184,0.65)]';
+                  if (isConnected && connectedTone) {
+                    circleClass += ` ring-4 ${connectedTone.winnerRing} ${connectedTone.winnerGlow}`;
+                  }
+
+                  if (state.gameOver && !isConnected && !isBlackHole) {
+                    circleClass += ' opacity-45';
                   }
 
                   return (
