@@ -113,6 +113,28 @@ export default function BlackHolePage() {
     return `${currentPlayer.label} turn — place ${value}.`;
   }, [currentPlayer, started, state]);
 
+  const cellPitch = 64;
+  const cellRadius = 28;
+  const boardWidth = state.height * cellPitch;
+  const boardHeight = state.height * cellPitch - 8;
+
+  const connectedLineSegments = useMemo(() => {
+    if (!state.blackHole || !state.gameOver) return [];
+
+    const blackHolePoint = {
+      x: ((state.height - (state.blackHole.row + 1)) * cellPitch) / 2 + state.blackHole.col * cellPitch + cellRadius,
+      y: state.blackHole.row * cellPitch + cellRadius,
+    };
+
+    return state.connectedCells.map((cell) => ({
+      id: cell.id,
+      x1: ((state.height - (cell.row + 1)) * cellPitch) / 2 + cell.col * cellPitch + cellRadius,
+      y1: cell.row * cellPitch + cellRadius,
+      x2: blackHolePoint.x,
+      y2: blackHolePoint.y,
+    }));
+  }, [state.blackHole, state.connectedCells, state.gameOver, state.height]);
+
   function startGame() {
     setState(initialState(playerCount));
     setStarted(true);
@@ -213,13 +235,6 @@ export default function BlackHolePage() {
         >
           ← Back
         </button>
-        <button
-          type="button"
-          onClick={resetGame}
-          className="px-3 py-2 rounded bg-slate-900 text-white hover:bg-slate-700"
-        >
-          Reset Game
-        </button>
       </div>
 
       <h1 className="text-3xl font-bold text-center">Black Hole</h1>
@@ -247,20 +262,22 @@ export default function BlackHolePage() {
         </ul>
       </section>
 
-      {!started && (
-        <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-2xl font-semibold mb-3">Configuration</h2>
-          <div className="flex flex-wrap gap-4 items-center">
-            <label className="font-medium text-slate-700" htmlFor="playerCount">Player count</label>
-            <select
-              id="playerCount"
-              value={playerCount}
-              onChange={(event) => setPlayerCount(Number(event.target.value))}
-              className="rounded border border-slate-300 px-3 py-2"
-            >
-              <option value={2}>2 players</option>
-              <option value={3}>3 players</option>
-            </select>
+      <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold mb-3">Configuration</h2>
+        <div className="flex flex-wrap gap-4 items-center">
+          <label className="font-medium text-slate-700" htmlFor="playerCount">Player count</label>
+          <select
+            id="playerCount"
+            value={playerCount}
+            onChange={(event) => setPlayerCount(Number(event.target.value))}
+            className="rounded border border-slate-300 px-3 py-2"
+            disabled={started}
+          >
+            <option value={2}>2 players</option>
+            <option value={3}>3 players</option>
+          </select>
+
+          {!started && (
             <button
               type="button"
               onClick={startGame}
@@ -268,9 +285,19 @@ export default function BlackHolePage() {
             >
               Start Game
             </button>
-          </div>
-        </section>
-      )}
+          )}
+
+          {started && (
+            <button
+              type="button"
+              onClick={resetGame}
+              className="px-4 py-2 rounded bg-slate-900 text-white hover:bg-slate-700"
+            >
+              Reset Game
+            </button>
+          )}
+        </div>
+      </section>
 
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col items-center gap-4">
         <p className="text-lg font-semibold text-slate-800">{statusText}</p>
@@ -287,7 +314,28 @@ export default function BlackHolePage() {
         )}
 
         {started && (
-          <div className="flex flex-col gap-2 items-center" onMouseLeave={() => setState((prev) => ({ ...prev, hovered: null }))}>
+          <div
+            className="relative flex flex-col gap-2 items-center"
+            style={{ width: `${boardWidth}px`, minHeight: `${boardHeight}px` }}
+            onMouseLeave={() => setState((prev) => ({ ...prev, hovered: null }))}
+          >
+            {connectedLineSegments.length > 0 && (
+              <svg className="pointer-events-none absolute inset-0" width={boardWidth} height={boardHeight}>
+                {connectedLineSegments.map((line) => (
+                  <line
+                    key={line.id}
+                    x1={line.x1}
+                    y1={line.y1}
+                    x2={line.x2}
+                    y2={line.y2}
+                    className="stroke-slate-500/70"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                  />
+                ))}
+              </svg>
+            )}
+
             {state.board.map((row) => (
               <div key={`row-${row[0].row}`} className="flex justify-center gap-2">
                 {row.map((cell) => {
@@ -333,7 +381,7 @@ export default function BlackHolePage() {
                   }
 
                   if (isConnected) {
-                    circleClass += ' ring-4 ring-amber-300';
+                    circleClass += ' ring-4 ring-slate-400/70 shadow-[0_0_20px_rgba(148,163,184,0.65)]';
                   }
 
                   return (
