@@ -7,19 +7,48 @@ const DEFAULT_SEED = 7;
 const DEFAULT_START_NODE = 0;
 
 function buildFunctionalGraph(nodeCount, seed) {
-  return Array.from({ length: nodeCount }, (_, index) => {
-    const jump = 1 + ((index * 5 + seed * 3 + 11) % Math.max(2, nodeCount - 1));
-    return (index + jump) % nodeCount;
+  const safeCount = Math.max(5, nodeCount);
+  const cycleLength = 2 + (seed % Math.max(2, safeCount - 2));
+  const cycleStart = safeCount - cycleLength;
+
+  const nextMap = Array.from({ length: safeCount }, (_, index) => {
+    if (index < cycleStart - 1) {
+      return index + 1;
+    }
+
+    if (index === cycleStart - 1) {
+      return cycleStart;
+    }
+
+    if (index < safeCount - 1) {
+      return index + 1;
+    }
+
+    return cycleStart;
   });
+
+  return { nextMap, cycleStart, cycleLength };
 }
 
-function buildNodeLayout(nodeCount) {
+function buildNodeLayout(nodeCount, cycleStart, cycleLength) {
+  const tailLength = cycleStart;
+  const tailSpacing = tailLength > 0 ? 34 / Math.max(1, tailLength) : 0;
+
   return Array.from({ length: nodeCount }, (_, index) => {
-    const angle = (-Math.PI / 2) + (index * Math.PI * 2) / nodeCount;
+    if (index < cycleStart) {
+      return {
+        id: index,
+        x: 10 + index * tailSpacing,
+        y: 50,
+      };
+    }
+
+    const cycleIndex = index - cycleStart;
+    const angle = (-Math.PI / 2) + (cycleIndex * Math.PI * 2) / Math.max(2, cycleLength);
     return {
       id: index,
-      x: 50 + 39 * Math.cos(angle),
-      y: 50 + 39 * Math.sin(angle),
+      x: 72 + 20 * Math.cos(angle),
+      y: 50 + 20 * Math.sin(angle),
     };
   });
 }
@@ -131,8 +160,13 @@ export default function FloydCycleDPPage() {
   const [startNode, setStartNode] = useState(DEFAULT_START_NODE);
   const [stepIndex, setStepIndex] = useState(0);
 
-  const nextMap = useMemo(() => buildFunctionalGraph(nodeCount, seed), [nodeCount, seed]);
-  const layout = useMemo(() => buildNodeLayout(nodeCount), [nodeCount]);
+  const graph = useMemo(() => buildFunctionalGraph(nodeCount, seed), [nodeCount, seed]);
+  const { nextMap, cycleStart: generatedCycleStart, cycleLength: generatedCycleLength } = graph;
+
+  const layout = useMemo(
+    () => buildNodeLayout(nodeCount, generatedCycleStart, generatedCycleLength),
+    [generatedCycleLength, generatedCycleStart, nodeCount]
+  );
 
   const { timeline, meetingNode, cycleEntry, cycleLength, mu } = useMemo(
     () => runFloydCycleDetection(nextMap, Math.min(startNode, nodeCount - 1)),
@@ -211,7 +245,7 @@ export default function FloydCycleDPPage() {
       <section className="w-full max-w-6xl rounded-xl border border-blue-200 bg-[#eef6ff] p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-3">How to use</h2>
         <ul className="list-disc pl-5 space-y-2 text-slate-700">
-          <li>Set node count, then regenerate the graph by changing the seed.</li>
+          <li>Set node count, then change the seed to regenerate a readable tail-then-cycle graph.</li>
           <li>Choose a start node and use <strong>Prev</strong>/<strong>Next</strong> or the slider to replay updates.</li>
           <li>In the graph, blue highlights cycle nodes, green marks slow, amber marks fast/finder/walker.</li>
           <li>Read the timeline details to connect each visual state to a Floyd phase.</li>
@@ -307,6 +341,11 @@ export default function FloydCycleDPPage() {
             Cycle length: <strong>{cycleLength}</strong> (λ)
           </p>
         </div>
+
+        <p className="mb-4 text-sm text-slate-600">
+          Graph shape: nodes <strong>0..{Math.max(generatedCycleStart - 1, 0)}</strong> form the tail and nodes{' '}
+          <strong>{generatedCycleStart}..{nodeCount - 1}</strong> form the cycle (length {generatedCycleLength}).
+        </p>
 
         <div className="mb-4 rounded-lg border border-slate-200 p-4">
           <h3 className="font-semibold mb-2">State timeline</h3>
