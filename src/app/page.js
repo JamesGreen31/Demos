@@ -53,6 +53,12 @@ export default function Home() {
       previewImage: '/fibonacci-heap-dp-preview.svg',
     },
     {
+      route: 'floyd-cycle-dp',
+      title: 'Floyd Cycle Detection DP Demo',
+      description: 'Step through tortoise-and-hare state transitions to find cycle entry and length',
+      previewImage: '/floyd-cycle-dp-preview.svg',
+    },
+    {
       route: 'wasm-vs-js',
       title: 'WASM vs JS',
       description: 'Visualize the speed of WASM with recursive Fibonacci',
