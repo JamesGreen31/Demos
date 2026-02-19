@@ -7,7 +7,7 @@
     "build": "npm run build:wasm && next build",
     "start": "next start",
     "lint": "next lint",
-    "build:wasm": "./scripts/build-wasm.sh"
+    "build:wasm": "bash ./scripts/build-wasm.sh"
   },
   "dependencies": {
     "next": "14.2.5",
