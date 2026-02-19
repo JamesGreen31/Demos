@@ -60,8 +60,8 @@ export default function Home() {
     },
     {
       route: 'lottery-hash-dp',
-      title: 'Lottery Hash Demo',
-      description: 'Compare classic hashing vs the power-of-two-choices strategy',
+      title: 'Power of Two Choicss Demo',
+      description: 'Compare standard, human-random, and lucky-bucket hashing strategies',
       previewImage: '/lottery-hash-dp-preview.svg',
     },
     {
