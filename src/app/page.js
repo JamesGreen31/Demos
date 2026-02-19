@@ -48,15 +48,21 @@ export default function Home() {
     },
     {
       route: 'fibonacci-heap-dp',
-      title: 'Fibonacci Heap DP Demo',
+      title: 'Fibonacci Heap Demo',
       description: 'Explore shortest-path DP powered by a Fibonacci heap',
       previewImage: '/fibonacci-heap-dp-preview.svg',
     },
     {
       route: 'floyd-cycle-dp',
-      title: 'Floyd Cycle Detection DP Demo',
+      title: 'Floyd Cycle Detection Demo',
       description: 'Step through tortoise-and-hare state transitions to find cycle entry and length',
       previewImage: '/floyd-cycle-dp-preview.svg',
+    },
+    {
+      route: 'lottery-hash-dp',
+      title: 'Power of Two Choicss Demo',
+      description: 'Compare standard, human-random, and lucky-bucket hashing strategies',
+      previewImage: '/lottery-hash-dp-preview.svg',
     },
     {
       route: 'wasm-vs-js',
