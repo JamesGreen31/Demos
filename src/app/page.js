@@ -60,8 +60,8 @@ export default function Home() {
     },
     {
       route: 'lottery-hash-dp',
-      title: 'Power of Two Choicss Demo',
-      description: 'Compare standard, human-random, and lucky-bucket hashing strategies',
+      title: 'High-Load Cuckoo Hashing Demo',
+      description: 'Explore selective-bucket cuckoo hashing near full capacity',
       previewImage: '/lottery-hash-dp-preview.svg',
     },
     {
