@@ -1,0 +1,38 @@
+<svg width="640" height="360" viewBox="0 0 640 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="640" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#E2E8F0"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" rx="24" fill="url(#bg)"/>
+  <text x="30" y="52" fill="#0F172A" font-family="Arial, sans-serif" font-size="30" font-weight="700">Power of Two Choicss Demo</text>
+  <text x="30" y="82" fill="#334155" font-family="Arial, sans-serif" font-size="16">Lucky bucket draw beats standard and human random</text>
+
+  <rect x="26" y="108" width="188" height="208" rx="14" fill="#FFE4E6"/>
+  <rect x="226" y="108" width="188" height="208" rx="14" fill="#FEF3C7"/>
+  <rect x="426" y="108" width="188" height="208" rx="14" fill="#DCFCE7"/>
+  <text x="40" y="134" fill="#9F1239" font-family="Arial, sans-serif" font-size="14" font-weight="700">Standard</text>
+  <text x="240" y="134" fill="#92400E" font-family="Arial, sans-serif" font-size="14" font-weight="700">Human Random</text>
+  <text x="440" y="134" fill="#065F46" font-family="Arial, sans-serif" font-size="14" font-weight="700">Lucky Bucket</text>
+
+  <rect x="42" y="274" width="12" height="28" rx="3" fill="#FB7185"/>
+  <rect x="58" y="252" width="12" height="50" rx="3" fill="#FB7185"/>
+  <rect x="74" y="236" width="12" height="66" rx="3" fill="#FB7185"/>
+  <rect x="90" y="220" width="12" height="82" rx="3" fill="#FB7185"/>
+  <rect x="106" y="204" width="12" height="98" rx="3" fill="#FB7185"/>
+
+  <rect x="242" y="274" width="12" height="28" rx="3" fill="#F59E0B"/>
+  <rect x="258" y="258" width="12" height="44" rx="3" fill="#F59E0B"/>
+  <rect x="274" y="248" width="12" height="54" rx="3" fill="#F59E0B"/>
+  <rect x="290" y="230" width="12" height="72" rx="3" fill="#F59E0B"/>
+  <rect x="306" y="220" width="12" height="82" rx="3" fill="#F59E0B"/>
+
+  <rect x="442" y="274" width="12" height="28" rx="3" fill="#34D399"/>
+  <rect x="458" y="266" width="12" height="36" rx="3" fill="#34D399"/>
+  <rect x="474" y="258" width="12" height="44" rx="3" fill="#34D399"/>
+  <rect x="490" y="252" width="12" height="50" rx="3" fill="#34D399"/>
+  <rect x="506" y="246" width="12" height="56" rx="3" fill="#34D399"/>
+
+  <text x="30" y="340" fill="#475569" font-family="Arial, sans-serif" font-size="13">Shorter tallest bars = fewer hotspot collisions</text>
+</svg>
