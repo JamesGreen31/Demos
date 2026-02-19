@@ -353,7 +353,7 @@ export default function FibonacciHeapDPPage() {
         </button>
       </div>
 
-      <h1 className="text-3xl md:text-4xl font-bold text-center">Fibonacci Heap DP Demo</h1>
+      <h1 className="text-3xl md:text-4xl font-bold text-center">Fibonacci Heap Demo</h1>
 
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-3">Traditional description</h2>
