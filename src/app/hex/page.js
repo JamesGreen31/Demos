@@ -146,9 +146,9 @@ export default function HexPage() {
         <p className="font-semibold text-center">{statusMessage}</p>
         <p className="text-sm text-slate-600">Moves played: {game.moves}</p>
 
-        <div className="flex flex-col items-start" aria-label="Hex board">
+        <div className="flex flex-col items-start pt-1" aria-label="Hex board">
           {game.board.map((row, rowIndex) => (
-            <div key={rowIndex} className="flex -mt-1" style={{ marginLeft: `${rowIndex * 18}px` }}>
+            <div key={rowIndex} className="flex -mt-3" style={{ marginLeft: `${rowIndex * 20}px` }}>
               {row.map((cell, colIndex) => {
                 const isBlue = cell === 'Blue';
                 const isRed = cell === 'Red';
@@ -174,7 +174,7 @@ export default function HexPage() {
                     type="button"
                     onClick={() => handleMove(rowIndex, colIndex)}
                     disabled={Boolean(cell) || Boolean(game.winner)}
-                    className={`w-9 h-9 md:w-10 md:h-10 border border-slate-400 mx-[2px] clip-hex transition-colors ${
+                    className={`hex-cell border border-slate-400 mx-[2px] transition-colors ${
                       isBlue
                         ? 'bg-blue-500 border-blue-600'
                         : isRed
@@ -205,8 +205,17 @@ export default function HexPage() {
       </section>
 
       <style jsx>{`
-        .clip-hex {
-          clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+        .hex-cell {
+          width: 40px;
+          height: 46px;
+          clip-path: polygon(50% 2%, 95% 25%, 95% 75%, 50% 98%, 5% 75%, 5% 25%);
+        }
+
+        @media (min-width: 768px) {
+          .hex-cell {
+            width: 44px;
+            height: 50px;
+          }
         }
       `}</style>
     </main>
