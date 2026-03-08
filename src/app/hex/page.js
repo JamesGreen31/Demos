@@ -146,7 +146,9 @@ export default function HexPage() {
         <p className="font-semibold text-center">{statusMessage}</p>
         <p className="text-sm text-slate-600">Moves played: {game.moves}</p>
 
-        <div className="flex flex-col items-start pt-1" aria-label="Hex board">
+        <div className="relative flex flex-col items-start pt-3 pb-3" aria-label="Hex board">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500 rounded-full pointer-events-none" aria-hidden="true" />
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500 rounded-full pointer-events-none" aria-hidden="true" />
           {game.board.map((row, rowIndex) => (
             <div key={rowIndex} className="flex -mt-3" style={{ marginLeft: `${rowIndex * 20}px` }}>
               {row.map((cell, colIndex) => {
