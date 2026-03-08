@@ -122,6 +122,17 @@ export default function HexPage() {
       <h1 className="text-3xl font-bold">Hex</h1>
 
       <section className="w-full max-w-5xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold mb-3">About the game</h2>
+        <p className="text-slate-700 mb-3">
+          Hex is a classic two-player connection board game invented by Piet Hein and independently rediscovered by
+          John Nash. Players place stones on a hexagonal grid and race to connect their assigned opposite sides.
+        </p>
+        <p className="text-slate-700">
+          Unlike many abstract board games, Hex cannot end in a draw, so every complete game has exactly one winner.
+        </p>
+      </section>
+
+      <section className="w-full max-w-5xl rounded-xl border border-blue-200 bg-[#eef6ff] p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-3">How to play</h2>
         <ul className="list-disc pl-5 space-y-2 text-slate-700">
           <li>Blue tries to connect the top edge to the bottom edge.</li>
@@ -141,6 +152,22 @@ export default function HexPage() {
               {row.map((cell, colIndex) => {
                 const isBlue = cell === 'Blue';
                 const isRed = cell === 'Red';
+                const isTop = rowIndex === 0;
+                const isBottom = rowIndex === BOARD_SIZE - 1;
+                const isLeft = colIndex === 0;
+                const isRight = colIndex === BOARD_SIZE - 1;
+
+                const borderStyle = {
+                  borderTopColor: isTop ? '#2563EB' : undefined,
+                  borderBottomColor: isBottom ? '#2563EB' : undefined,
+                  borderLeftColor: isLeft ? '#E11D48' : undefined,
+                  borderRightColor: isRight ? '#E11D48' : undefined,
+                  borderTopWidth: isTop ? '3px' : undefined,
+                  borderBottomWidth: isBottom ? '3px' : undefined,
+                  borderLeftWidth: isLeft ? '3px' : undefined,
+                  borderRightWidth: isRight ? '3px' : undefined,
+                };
+
                 return (
                   <button
                     key={`${rowIndex}-${colIndex}`}
@@ -154,6 +181,7 @@ export default function HexPage() {
                         ? 'bg-rose-500 border-rose-600'
                         : 'bg-slate-100 hover:bg-slate-200'
                     } ${game.winner ? 'cursor-default' : ''}`}
+                    style={borderStyle}
                     aria-label={`Row ${rowIndex + 1}, column ${colIndex + 1}`}
                   />
                 );
