@@ -1,0 +1,25 @@
+<svg width="640" height="360" viewBox="0 0 640 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="360" rx="20" fill="#F8FAFC"/>
+  <rect x="24" y="24" width="592" height="312" rx="16" fill="url(#bg)"/>
+  <g opacity="0.95">
+    <polygon points="190,88 220,88 236,116 220,144 190,144 174,116" fill="#60A5FA"/>
+    <polygon points="234,88 264,88 280,116 264,144 234,144 218,116" fill="#E2E8F0"/>
+    <polygon points="278,88 308,88 324,116 308,144 278,144 262,116" fill="#FB7185"/>
+
+    <polygon points="212,126 242,126 258,154 242,182 212,182 196,154" fill="#E2E8F0"/>
+    <polygon points="256,126 286,126 302,154 286,182 256,182 240,154" fill="#60A5FA"/>
+    <polygon points="300,126 330,126 346,154 330,182 300,182 284,154" fill="#E2E8F0"/>
+
+    <polygon points="234,164 264,164 280,192 264,220 234,220 218,192" fill="#FB7185"/>
+    <polygon points="278,164 308,164 324,192 308,220 278,220 262,192" fill="#60A5FA"/>
+    <polygon points="322,164 352,164 368,192 352,220 322,220 306,192" fill="#E2E8F0"/>
+  </g>
+  <text x="392" y="156" fill="#0F172A" font-size="44" font-family="Arial, sans-serif" font-weight="700">HEX</text>
+  <text x="392" y="188" fill="#334155" font-size="20" font-family="Arial, sans-serif">Connect opposite sides</text>
+  <defs>
+    <linearGradient id="bg" x1="24" y1="24" x2="616" y2="336" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E0F2FE"/>
+      <stop offset="1" stop-color="#DBEAFE"/>
+    </linearGradient>
+  </defs>
+</svg>
