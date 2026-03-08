@@ -126,6 +126,12 @@ export default function Home() {
       previewImage: '/syndicate-preview.svg',
     },
     {
+      route: 'hex',
+      title: 'Hex',
+      description: 'Claim hexes and connect your two sides before your opponent',
+      previewImage: '/hex-preview.svg',
+    },
+    {
       route: 'crossword',
       title: 'Word Search',
       description: 'Find hidden words across the grid in multiple directions',
