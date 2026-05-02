@@ -239,8 +239,8 @@ export default function SlitherlinkPage() {
       </div>
       <h1 className="text-3xl font-bold text-center">Slitherlink Demo</h1>
 
-      <section className="w-full max-w-5xl rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
-        <h2 className="text-2xl font-semibold mb-3">How to play</h2>
+      <section className="w-full max-w-5xl rounded-xl border border-blue-200 bg-[#eef6ff] p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold mb-3">How to Play</h2>
         <ul className="list-disc pl-5 space-y-2 text-slate-700">
           <li>Click line segments to draw your loop.</li>
           <li>Each clue says exactly how many sides of that cell are in the loop.</li>
