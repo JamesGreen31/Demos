@@ -10,12 +10,12 @@ function createBoard(size) {
 
 function getNeighbors(row, col, size) {
   return [
+    [row - 1, col - 1],
     [row - 1, col],
-    [row - 1, col + 1],
     [row, col - 1],
     [row, col + 1],
-    [row + 1, col - 1],
     [row + 1, col],
+    [row + 1, col + 1],
   ].filter(([r, c]) => r >= 0 && r < size && c >= 0 && c < size);
 }
 
