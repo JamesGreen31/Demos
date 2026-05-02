@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const PLAYER_CONFIGS = {
   2: [
     { key: 'red', label: 'Red' },
-    { key: 'blue', label: 'Blue' },
+    { key: 'gold', label: 'Gold' },
   ],
   3: [
     { key: 'red', label: 'Red' },
@@ -22,12 +22,12 @@ const COLOR_STYLES = {
     winnerRing: 'ring-red-500/95',
     winnerGlow: 'shadow-[0_0_26px_rgba(239,68,68,0.75)]',
   },
-  blue: {
-    ring: 'ring-blue-500',
-    number: 'text-blue-700',
-    fill: 'bg-blue-100',
-    winnerRing: 'ring-blue-500/95',
-    winnerGlow: 'shadow-[0_0_26px_rgba(59,130,246,0.75)]',
+  gold: {
+    ring: 'ring-amber-500',
+    number: 'text-amber-700',
+    fill: 'bg-amber-100',
+    winnerRing: 'ring-amber-500/95',
+    winnerGlow: 'shadow-[0_0_26px_rgba(245,158,11,0.75)]',
   },
   green: {
     ring: 'ring-emerald-500',
@@ -62,7 +62,7 @@ function getNeighbors(row, col, height) {
   return candidates.filter(([r, c]) => r >= 0 && r < height && c >= 0 && c <= r);
 }
 
-function initialState(playerCount) {
+function initialState(playerCount, aiEnabled = false) {
   const players = PLAYER_CONFIGS[playerCount];
   const height = playerCount === 2 ? 6 : 7;
   const nextValues = Object.fromEntries(players.map((player) => [player.key, 1]));
@@ -81,6 +81,9 @@ function initialState(playerCount) {
     connectedCells: [],
     scores: Object.fromEntries(players.map((player) => [player.key, 0])),
     winnerKeys: [],
+    aiCandidateIds: [],
+    aiThinking: false,
+    aiEnabled,
   };
 }
 
@@ -88,7 +91,9 @@ export default function BlackHolePage() {
   const demosHref = process.env.NODE_ENV === 'production' ? '/Demos' : '/';
   const [playerCount, setPlayerCount] = useState(2);
   const [started, setStarted] = useState(false);
-  const [state, setState] = useState(() => initialState(2));
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [state, setState] = useState(() => initialState(2, true));
+  const aiTimerRef = useRef(null);
 
   useEffect(() => {
     document.title = 'Black Hole';
@@ -147,18 +152,18 @@ export default function BlackHolePage() {
   }, [state.blackHole, state.connectedCells, state.gameOver, state.height]);
 
   function startGame() {
-    setState(initialState(playerCount));
+    setState(initialState(playerCount, aiEnabled));
     setStarted(true);
   }
 
   function resetGame() {
     if (!window.confirm('Are you sure you want to start a new game?')) return;
-    setState(initialState(playerCount));
+    setState(initialState(playerCount, aiEnabled));
     setStarted(false);
   }
 
   function handleCellClick(cell) {
-    if (!started || state.gameOver || cell.move) return;
+    if (!started || state.gameOver || cell.move || (state.aiEnabled && currentPlayer.key === 'gold')) return;
 
     setState((prev) => {
       if (prev.selected?.id === cell.id) {
@@ -232,9 +237,70 @@ export default function BlackHolePage() {
         turnIndex: (prev.turnIndex + 1) % prev.playerCount,
         selected: null,
         hovered: null,
+        aiCandidateIds: [],
+        aiThinking: false,
       };
     });
   }
+
+
+
+  useEffect(() => {
+    if (aiTimerRef.current) {
+      clearTimeout(aiTimerRef.current);
+      aiTimerRef.current = null;
+    }
+
+    if (!started || state.gameOver || !state.aiEnabled || currentPlayer.key !== 'gold') return;
+
+    const open = state.board.flat().filter((cell) => !cell.move);
+    if (open.length === 0) return;
+
+    const scored = open
+      .map((cell) => {
+        const neighbors = getNeighbors(cell.row, cell.col, state.height).map(([r, c]) => state.board[r][c]);
+        const occupied = neighbors.filter((neighbor) => neighbor.move);
+        const score = occupied.reduce((sum, entry) => sum + entry.move.value, 0) + occupied.length * 0.8 + Math.random() * 0.01;
+        return { cell, score };
+      })
+      .sort((a, b) => a.score - b.score);
+
+    const topThree = scored.slice(0, 3).map((entry) => entry.cell.id);
+    const choice = scored[0].cell;
+
+    setState((prev) => ({ ...prev, aiCandidateIds: topThree, aiThinking: true }));
+
+    aiTimerRef.current = setTimeout(() => {
+      setState((prev) => {
+        if (prev.gameOver) return prev;
+        const player = prev.players[prev.turnIndex];
+        const placement = prev.nextValues[player.key];
+        const nextBoard = prev.board.map((row) =>
+          row.map((cell) => (cell.id === choice.id
+            ? { ...cell, move: { playerKey: player.key, playerLabel: player.label, value: placement } }
+            : cell)),
+        );
+        const nextValues = { ...prev.nextValues, [player.key]: placement + 1 };
+        const nextOpen = nextBoard.flat().filter((cell) => !cell.move);
+        if (nextOpen.length === 1) {
+          const blackHole = nextOpen[0];
+          const connectedCells = getNeighbors(blackHole.row, blackHole.col, prev.height)
+            .map(([row, col]) => nextBoard[row][col])
+            .filter((cell) => cell.move);
+          const scores = Object.fromEntries(prev.players.map((entry) => [entry.key, 0]));
+          for (const connected of connectedCells) scores[connected.move.playerKey] += connected.move.value;
+          const lowest = Math.min(...Object.values(scores));
+          const winnerKeys = prev.players.map((entry) => entry.key).filter((key) => scores[key] === lowest);
+          return { ...prev, board: nextBoard, nextValues, selected: null, hovered: null, aiCandidateIds: [], aiThinking: false, gameOver: true, blackHole, connectedCells, scores, winnerKeys };
+        }
+        return { ...prev, board: nextBoard, nextValues, turnIndex: (prev.turnIndex + 1) % prev.playerCount, selected: null, hovered: null, aiCandidateIds: [], aiThinking: false };
+      });
+    }, 1500);
+
+    return () => {
+      if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+    };
+  }, [started, state.board, state.gameOver, state.aiEnabled, currentPlayer.key, state.height]);
 
   return (
     <main className="min-h-screen p-6 md:p-8 flex flex-col items-center gap-6">
@@ -288,6 +354,13 @@ export default function BlackHolePage() {
             <option value={3}>3 players</option>
           </select>
 
+          {!started && playerCount === 2 && (
+            <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" checked={aiEnabled} onChange={(event) => setAiEnabled(event.target.checked)} />
+              Play vs AI (Gold)
+            </label>
+          )}
+
           {!started && (
             <button
               type="button"
@@ -312,6 +385,9 @@ export default function BlackHolePage() {
 
       <section className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col items-center gap-4">
         <p className="text-lg font-semibold text-slate-800">{statusText}</p>
+        {started && state.aiEnabled && currentPlayer.key === 'gold' && (
+          <p className="text-sm text-amber-700 font-medium">Gold AI is thinking... showing top 3 candidate moves.</p>
+        )}
 
         {started && !state.gameOver && (
           <button
@@ -352,7 +428,8 @@ export default function BlackHolePage() {
                 {row.map((cell) => {
                   const isSelected = state.selected?.id === cell.id;
                   const isHovered = state.hovered?.id === cell.id;
-                  const previewActive = !cell.move && (isSelected || (!state.selected && isHovered));
+                  const aiCandidateRank = state.aiCandidateIds.indexOf(cell.id);
+                  const previewActive = !cell.move && (isSelected || (!state.selected && isHovered) || aiCandidateRank >= 0);
                   const previewColor = currentPlayer ? COLOR_STYLES[currentPlayer.key] : null;
                   const showBlackHolePreview = blackHolePreview?.id === cell.id;
                   const isBlackHole = state.blackHole?.id === cell.id;
@@ -379,6 +456,11 @@ export default function BlackHolePage() {
                   if (previewActive && previewColor) {
                     circleClass += ` ring-2 ${previewColor.ring} border-transparent`;
                     numberClass = `relative z-10 ${previewColor.number} opacity-30`;
+                    shownNumber = state.nextValues[currentPlayer.key];
+                  }
+
+                  if (aiCandidateRank >= 0) {
+                    circleClass += ' ring-4 ring-amber-300';
                     shownNumber = state.nextValues[currentPlayer.key];
                   }
 

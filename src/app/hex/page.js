@@ -19,21 +19,26 @@ function getNeighbors(row, col, size) {
   ].filter(([r, c]) => r >= 0 && r < size && c >= 0 && c < size);
 }
 
-function playerHasConnection(board, player) {
+function findWinningPath(board, player) {
   const size = board.length;
   const stack = [];
   const visited = new Set();
+  const parent = new Map();
 
   if (player === 'Blue') {
     for (let col = 0; col < size; col += 1) {
       if (board[0][col] === player) {
+        const key = `0:${col}`;
         stack.push([0, col]);
+        parent.set(key, null);
       }
     }
   } else {
     for (let row = 0; row < size; row += 1) {
       if (board[row][0] === player) {
+        const key = `${row}:0`;
         stack.push([row, 0]);
+        parent.set(key, null);
       }
     }
   }
@@ -45,22 +50,26 @@ function playerHasConnection(board, player) {
     if (visited.has(key)) continue;
     visited.add(key);
 
-    if (player === 'Blue' && row === size - 1) {
-      return true;
-    }
-
-    if (player === 'Red' && col === size - 1) {
-      return true;
+    if ((player === 'Blue' && row === size - 1) || (player === 'Red' && col === size - 1)) {
+      const path = new Set();
+      let current = key;
+      while (current) {
+        path.add(current);
+        current = parent.get(current);
+      }
+      return path;
     }
 
     getNeighbors(row, col, size).forEach(([nextRow, nextCol]) => {
-      if (board[nextRow][nextCol] === player) {
-        stack.push([nextRow, nextCol]);
-      }
+      if (board[nextRow][nextCol] !== player) return;
+      const nextKey = `${nextRow}:${nextCol}`;
+      if (visited.has(nextKey) || parent.has(nextKey)) return;
+      parent.set(nextKey, key);
+      stack.push([nextRow, nextCol]);
     });
   }
 
-  return false;
+  return null;
 }
 
 function buildInitialGame() {
@@ -68,6 +77,7 @@ function buildInitialGame() {
     board: createBoard(BOARD_SIZE),
     currentPlayer: 'Blue',
     winner: null,
+    winningPath: new Set(),
     moves: 0,
   };
 }
@@ -96,11 +106,13 @@ export default function HexPage() {
       const board = prev.board.map((line) => [...line]);
       board[row][col] = prev.currentPlayer;
 
-      const winner = playerHasConnection(board, prev.currentPlayer) ? prev.currentPlayer : null;
+      const winningPath = findWinningPath(board, prev.currentPlayer);
+      const winner = winningPath ? prev.currentPlayer : null;
 
       return {
         board,
         winner,
+        winningPath: winningPath ?? new Set(),
         currentPlayer: winner ? prev.currentPlayer : prev.currentPlayer === 'Blue' ? 'Red' : 'Blue',
         moves: prev.moves + 1,
       };
@@ -158,6 +170,7 @@ export default function HexPage() {
                 const isBottom = rowIndex === BOARD_SIZE - 1;
                 const isLeft = colIndex === 0;
                 const isRight = colIndex === BOARD_SIZE - 1;
+                const isWinningCell = game.winningPath.has(`${rowIndex}:${colIndex}`);
 
                 const borderStyle = {
                   borderTopColor: isTop ? '#2563EB' : undefined,
@@ -176,13 +189,13 @@ export default function HexPage() {
                     type="button"
                     onClick={() => handleMove(rowIndex, colIndex)}
                     disabled={Boolean(cell) || Boolean(game.winner)}
-                    className={`hex-cell border border-slate-400 mx-[2px] transition-colors ${
+                    className={`hex-cell border border-slate-400 mx-[2px] transition-all ${
                       isBlue
                         ? 'bg-blue-500 border-blue-600'
                         : isRed
                         ? 'bg-rose-500 border-rose-600'
                         : 'bg-slate-100 hover:bg-slate-200'
-                    } ${game.winner ? 'cursor-default' : ''}`}
+                    } ${isWinningCell ? 'ring-4 ring-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.8)]' : ''} ${game.winner ? 'cursor-default' : ''}`}
                     style={borderStyle}
                     aria-label={`Row ${rowIndex + 1}, column ${colIndex + 1}`}
                   />
