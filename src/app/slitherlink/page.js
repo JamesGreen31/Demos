@@ -3,9 +3,80 @@
 import { useMemo, useState } from 'react';
 
 const SIZE = 9;
+const DEFAULT_HINT_DENSITY = 45;
 
 function randomInt(max) {
   return Math.floor(Math.random() * max);
+}
+
+function buildLoopFromPath(path) {
+  const horizontal = Array.from({ length: SIZE + 1 }, () => Array.from({ length: SIZE }, () => false));
+  const vertical = Array.from({ length: SIZE }, () => Array.from({ length: SIZE + 1 }, () => false));
+
+  for (let index = 0; index < path.length - 1; index += 1) {
+    const current = path[index];
+    const next = path[index + 1];
+
+    if (current.row === next.row) {
+      const row = current.row;
+      const col = Math.min(current.col, next.col);
+      if (row >= 0 && row <= SIZE && col >= 0 && col < SIZE) {
+        horizontal[row][col] = true;
+      }
+    } else {
+      const row = Math.min(current.row, next.row);
+      const col = current.col;
+      if (row >= 0 && row < SIZE && col >= 0 && col <= SIZE) {
+        vertical[row][col] = true;
+      }
+    }
+  }
+
+  return { horizontal, vertical };
+}
+
+function tryBuildWalkLoop() {
+  const start = { row: 1 + randomInt(SIZE - 1), col: 1 + randomInt(SIZE - 1) };
+  const path = [start];
+  const seen = new Set([`${start.row},${start.col}`]);
+  const minLength = 18;
+  const maxLength = 120;
+  const directions = [
+    { row: -1, col: 0 },
+    { row: 1, col: 0 },
+    { row: 0, col: -1 },
+    { row: 0, col: 1 },
+  ];
+
+  for (let step = 0; step < maxLength; step += 1) {
+    const current = path[path.length - 1];
+    const nextOptions = [];
+
+    directions.forEach((direction) => {
+      const candidate = { row: current.row + direction.row, col: current.col + direction.col };
+      if (candidate.row < 0 || candidate.row > SIZE || candidate.col < 0 || candidate.col > SIZE) {
+        return;
+      }
+      const key = `${candidate.row},${candidate.col}`;
+      if (candidate.row === start.row && candidate.col === start.col) {
+        if (path.length >= minLength) nextOptions.push(candidate);
+        return;
+      }
+      if (!seen.has(key)) {
+        nextOptions.push(candidate);
+      }
+    });
+
+    if (nextOptions.length === 0) return null;
+    const choice = nextOptions[randomInt(nextOptions.length)];
+    path.push(choice);
+    if (choice.row === start.row && choice.col === start.col) {
+      return buildLoopFromPath(path);
+    }
+    seen.add(`${choice.row},${choice.col}`);
+  }
+
+  return null;
 }
 
 function buildRectangleLoop() {
@@ -15,7 +86,6 @@ function buildRectangleLoop() {
   const left = randomInt(maxStart);
   const bottom = top + minSpan + randomInt(SIZE - top - minSpan + 1);
   const right = left + minSpan + randomInt(SIZE - left - minSpan + 1);
-
   const horizontal = Array.from({ length: SIZE + 1 }, () => Array.from({ length: SIZE }, () => false));
   const vertical = Array.from({ length: SIZE }, () => Array.from({ length: SIZE + 1 }, () => false));
 
@@ -41,13 +111,14 @@ function countCellEdges(edges, row, col) {
   return count;
 }
 
-function createPuzzleFromSolution(solutionEdges) {
+function createPuzzleFromSolution(solutionEdges, hintDensityPercent) {
   const clues = Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => ''));
+  const hintChance = hintDensityPercent / 100;
 
   for (let row = 0; row < SIZE; row += 1) {
     for (let col = 0; col < SIZE; col += 1) {
       const count = countCellEdges(solutionEdges, row, col);
-      if (Math.random() < 0.55) clues[row][col] = String(count);
+      if (Math.random() < hintChance) clues[row][col] = String(count);
     }
   }
 
@@ -61,10 +132,19 @@ function createEmptyEdges() {
   };
 }
 
-function createPuzzleState() {
-  const solution = buildRectangleLoop();
+function createPuzzleState(hintDensityPercent) {
+  let solution = null;
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const candidate = tryBuildWalkLoop();
+    if (candidate) {
+      solution = candidate;
+      break;
+    }
+  }
+  if (!solution) solution = buildRectangleLoop();
+
   return {
-    clues: createPuzzleFromSolution(solution),
+    clues: createPuzzleFromSolution(solution, hintDensityPercent),
     edges: createEmptyEdges(),
   };
 }
@@ -95,7 +175,8 @@ function getVertexDegrees(edges) {
 
 export default function SlitherlinkPage() {
   const demosHref = process.env.NODE_ENV === 'production' ? '/Demos' : '/';
-  const [state, setState] = useState(() => createPuzzleState());
+  const [hintDensity, setHintDensity] = useState(DEFAULT_HINT_DENSITY);
+  const [state, setState] = useState(() => createPuzzleState(DEFAULT_HINT_DENSITY));
 
   const clueStatus = useMemo(() => {
     let satisfied = 0;
@@ -148,7 +229,7 @@ export default function SlitherlinkPage() {
   }
 
   function newPuzzle() {
-    setState(createPuzzleState());
+    setState(createPuzzleState(hintDensity));
   }
 
   return (
@@ -158,13 +239,33 @@ export default function SlitherlinkPage() {
       </div>
       <h1 className="text-3xl font-bold text-center">Slitherlink Demo</h1>
 
-      <section className="w-full max-w-5xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="w-full max-w-5xl rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-3">How to play</h2>
         <ul className="list-disc pl-5 space-y-2 text-slate-700">
           <li>Click line segments to draw your loop.</li>
           <li>Each clue says exactly how many sides of that cell are in the loop.</li>
           <li>Loops cannot branch or end; every used dot should have degree 2.</li>
         </ul>
+      </section>
+
+      <section className="w-full max-w-5xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold mb-4">Controls</h2>
+        <div className="space-y-4">
+          <label htmlFor="hint-density" className="block font-medium text-slate-700">
+            Hint density: {hintDensity}%
+          </label>
+          <input
+            id="hint-density"
+            type="range"
+            min="20"
+            max="80"
+            value={hintDensity}
+            onChange={(event) => setHintDensity(Number(event.target.value))}
+            className="w-full"
+          />
+          <p className="text-sm text-slate-600">Lower density gives fewer clues and a harder puzzle. Puzzle numbers are still generator-driven.</p>
+          <button type="button" className="px-4 py-2 rounded bg-slate-900 text-white hover:bg-slate-700" onClick={newPuzzle}>New Puzzle</button>
+        </div>
       </section>
 
       <div className="rounded-xl bg-slate-50 p-4 shadow-inner overflow-auto">
@@ -197,10 +298,11 @@ export default function SlitherlinkPage() {
         </div>
       </div>
 
-      <p className="font-medium">Satisfied clues: {clueStatus.satisfied}/{clueStatus.clueCount}</p>
-      <p className="text-slate-700">{loopStatus}</p>
-
-      <button type="button" className="px-4 py-2 rounded bg-slate-900 text-white hover:bg-slate-700" onClick={newPuzzle}>New Puzzle</button>
+      <section className="w-full max-w-5xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-semibold">Status</h2>
+        <p className="font-medium mt-2">Satisfied clues: {clueStatus.satisfied}/{clueStatus.clueCount}</p>
+        <p className="text-slate-700 mt-1">{loopStatus}</p>
+      </section>
     </main>
   );
 }
