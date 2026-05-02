@@ -146,6 +146,8 @@ function createPuzzleState(hintDensityPercent) {
   return {
     clues: createPuzzleFromSolution(solution, hintDensityPercent),
     edges: createEmptyEdges(),
+    solutionEdges: solution,
+    revealSolution: false,
   };
 }
 
@@ -232,6 +234,10 @@ export default function SlitherlinkPage() {
     setState(createPuzzleState(hintDensity));
   }
 
+  function toggleRevealSolution() {
+    setState((prev) => ({ ...prev, revealSolution: !prev.revealSolution }));
+  }
+
   return (
     <main className="min-h-screen p-6 md:p-8 flex flex-col items-center gap-5">
       <div className="w-full max-w-5xl flex items-center justify-between">
@@ -264,7 +270,12 @@ export default function SlitherlinkPage() {
             className="w-full"
           />
           <p className="text-sm text-slate-600">Lower density gives fewer clues and a harder puzzle. Puzzle numbers are still generator-driven.</p>
-          <button type="button" className="px-4 py-2 rounded bg-slate-900 text-white hover:bg-slate-700" onClick={newPuzzle}>New Puzzle</button>
+          <div className="flex gap-3">
+            <button type="button" className="px-4 py-2 rounded bg-slate-900 text-white hover:bg-slate-700" onClick={newPuzzle}>New Puzzle</button>
+            <button type="button" className="px-4 py-2 rounded bg-emerald-600 text-white hover:bg-emerald-500" onClick={toggleRevealSolution}>
+              {state.revealSolution ? 'Hide Solution' : 'Reveal Solution'}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -272,13 +283,13 @@ export default function SlitherlinkPage() {
         <div className="relative" style={{ width: SIZE * 44 + 1, height: SIZE * 44 + 1 }}>
           {Array.from({ length: SIZE + 1 }).map((_, row) =>
             Array.from({ length: SIZE }).map((__, col) => (
-              <button key={`h-${row}-${col}`} type="button" onClick={() => toggleHorizontal(row, col)} className={`absolute h-2 rounded-full ${state.edges.horizontal[row][col] ? 'bg-sky-600' : 'bg-slate-200 hover:bg-slate-400'}`} style={{ top: row * 44 - 4, left: col * 44 + 4, width: 36 }} />
+              <button key={`h-${row}-${col}`} type="button" onClick={() => toggleHorizontal(row, col)} className={`absolute h-2 rounded-full ${state.edges.horizontal[row][col] ? 'bg-sky-600' : state.revealSolution && state.solutionEdges.horizontal[row][col] ? 'bg-emerald-400/80' : 'bg-slate-200 hover:bg-slate-400'}`} style={{ top: row * 44 - 4, left: col * 44 + 4, width: 36 }} />
             ))
           )}
 
           {Array.from({ length: SIZE }).map((_, row) =>
             Array.from({ length: SIZE + 1 }).map((__, col) => (
-              <button key={`v-${row}-${col}`} type="button" onClick={() => toggleVertical(row, col)} className={`absolute w-2 rounded-full ${state.edges.vertical[row][col] ? 'bg-sky-600' : 'bg-slate-200 hover:bg-slate-400'}`} style={{ top: row * 44 + 4, left: col * 44 - 4, height: 36 }} />
+              <button key={`v-${row}-${col}`} type="button" onClick={() => toggleVertical(row, col)} className={`absolute w-2 rounded-full ${state.edges.vertical[row][col] ? 'bg-sky-600' : state.revealSolution && state.solutionEdges.vertical[row][col] ? 'bg-emerald-400/80' : 'bg-slate-200 hover:bg-slate-400'}`} style={{ top: row * 44 + 4, left: col * 44 - 4, height: 36 }} />
             ))
           )}
 

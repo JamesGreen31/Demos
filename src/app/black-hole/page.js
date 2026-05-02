@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 const PLAYER_CONFIGS = {
   2: [
     { key: 'red', label: 'Red' },
-    { key: 'gold', label: 'Gold' },
+    { key: 'blue', label: 'Blue' },
   ],
   3: [
     { key: 'red', label: 'Red' },
@@ -21,6 +21,13 @@ const COLOR_STYLES = {
     fill: 'bg-red-100',
     winnerRing: 'ring-red-500/95',
     winnerGlow: 'shadow-[0_0_26px_rgba(239,68,68,0.75)]',
+  },
+  blue: {
+    ring: 'ring-blue-500',
+    number: 'text-blue-700',
+    fill: 'bg-blue-100',
+    winnerRing: 'ring-blue-500/95',
+    winnerGlow: 'shadow-[0_0_26px_rgba(59,130,246,0.75)]',
   },
   gold: {
     ring: 'ring-amber-500',
@@ -63,7 +70,9 @@ function getNeighbors(row, col, height) {
 }
 
 function initialState(playerCount, aiEnabled = false) {
-  const players = PLAYER_CONFIGS[playerCount];
+  const players = playerCount === 2 && aiEnabled
+    ? [{ key: 'red', label: 'Red' }, { key: 'gold', label: 'Gold (AI)' }]
+    : PLAYER_CONFIGS[playerCount];
   const height = playerCount === 2 ? 6 : 7;
   const nextValues = Object.fromEntries(players.map((player) => [player.key, 1]));
 
