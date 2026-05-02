@@ -143,6 +143,12 @@ export default function Home() {
       description: 'Place rising values into circles and win with the lowest black-hole sum',
       previewImage: '/black-hole-preview.svg',
     },
+    {
+      route: 'slitherlink',
+      title: 'Slitherlink',
+      description: 'Draw a single loop that satisfies numbered clues on a 9x9 grid',
+      previewImage: '/slitherlink-preview.svg',
+    },
   ];
 
   return (

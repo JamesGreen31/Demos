@@ -1,0 +1,12 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#E2E8F0"/>
+  <rect x="250" y="80" width="700" height="470" rx="24" fill="#F8FAFC" stroke="#94A3B8" stroke-width="4"/>
+  <g stroke="#334155" stroke-width="4" fill="none">
+    <path d="M360 170H840"/><path d="M360 250H840"/><path d="M360 330H840"/><path d="M360 410H840"/><path d="M360 490H840"/>
+    <path d="M360 170V490"/><path d="M460 170V490"/><path d="M560 170V490"/><path d="M660 170V490"/><path d="M760 170V490"/><path d="M840 170V490"/>
+  </g>
+  <g stroke="#0284C7" stroke-width="10" stroke-linecap="round">
+    <path d="M360 170H560V330H760V490H460V250H360"/>
+  </g>
+  <text x="600" y="125" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" font-weight="700" fill="#0F172A">Slitherlink</text>
+</svg>
