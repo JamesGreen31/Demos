@@ -245,6 +245,18 @@ export default function SlitherlinkPage() {
       </div>
       <h1 className="text-3xl font-bold text-center">Slitherlink Demo</h1>
 
+      <section className="w-full max-w-5xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold mb-3">About the game</h2>
+        <p className="text-slate-700 mb-3">
+          Slitherlink is a logic puzzle where you draw one continuous loop around numbered cells on a square grid.
+          The numbers indicate exactly how many edges of that cell belong to the final loop.
+        </p>
+        <p className="text-slate-700">
+          The loop cannot branch, cross, or leave loose ends, so each used grid point must connect to exactly two
+          drawn edges.
+        </p>
+      </section>
+
       <section className="w-full max-w-5xl rounded-xl border border-blue-200 bg-[#eef6ff] p-5 shadow-sm">
         <h2 className="text-2xl font-semibold mb-3">How to Play</h2>
         <ul className="list-disc pl-5 space-y-2 text-slate-700">

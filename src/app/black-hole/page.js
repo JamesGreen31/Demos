@@ -70,14 +70,15 @@ function getNeighbors(row, col, height) {
 }
 
 function initialState(playerCount, aiEnabled = false) {
-  const players = playerCount === 2 && aiEnabled
-    ? [{ key: 'red', label: 'Red' }, { key: 'gold', label: 'Gold (AI)' }]
+  const players = aiEnabled
+    ? [{ key: 'red', label: 'Red' }, { key: 'blue', label: 'Blue' }, { key: 'gold', label: 'Gold (AI)' }]
     : PLAYER_CONFIGS[playerCount];
-  const height = playerCount === 2 ? 6 : 7;
+  const effectivePlayerCount = aiEnabled ? 3 : playerCount;
+  const height = effectivePlayerCount === 2 ? 6 : 7;
   const nextValues = Object.fromEntries(players.map((player) => [player.key, 1]));
 
   return {
-    playerCount,
+    playerCount: effectivePlayerCount,
     players,
     board: createBoard(height),
     height,
@@ -340,6 +341,7 @@ export default function BlackHolePage() {
         <h2 className="text-2xl font-semibold mb-3">How to Play</h2>
         <ul className="list-disc pl-5 space-y-2 text-slate-700">
           <li>Choose 2 players (height 6) or 3 players (height 7), then start.</li>
+          <li>Enable AI to play Red vs Blue vs Gold (AI), with Gold always moving last.</li>
           <li>On each turn, pick one open circle and confirm the move.</li>
           <li>Each player places increasing numbers: 1, 2, 3, and so on for their own turns.</li>
           <li>Placed circles lock immediately. No undo moves are allowed.</li>
@@ -363,7 +365,7 @@ export default function BlackHolePage() {
             <option value={3}>3 players</option>
           </select>
 
-          {!started && playerCount === 2 && (
+          {!started && (
             <label className="inline-flex items-center gap-2 text-sm text-slate-700">
               <input type="checkbox" checked={aiEnabled} onChange={(event) => setAiEnabled(event.target.checked)} />
               Play vs AI (Gold)
