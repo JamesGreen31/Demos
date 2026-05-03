@@ -4,6 +4,11 @@ import { useMemo, useState } from 'react';
 
 const BOARD_SIZE = 11;
 
+const WIN_HIGHLIGHT = {
+  Blue: 'ring-4 ring-blue-500/95 shadow-[0_0_26px_rgba(59,130,246,0.75)]',
+  Red: 'ring-4 ring-red-500/95 shadow-[0_0_26px_rgba(239,68,68,0.75)]',
+};
+
 function createBoard(size) {
   return Array.from({ length: size }, () => Array(size).fill(null));
 }
@@ -195,7 +200,7 @@ export default function HexPage() {
                         : isRed
                         ? 'bg-rose-500 border-rose-600'
                         : 'bg-slate-100 hover:bg-slate-200'
-                    } ${isWinningCell ? 'ring-4 ring-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.8)]' : ''} ${game.winner ? 'cursor-default' : ''}`}
+                    } ${isWinningCell ? WIN_HIGHLIGHT[cell] : ''} ${game.winner ? 'cursor-default' : ''}`}
                     style={borderStyle}
                     aria-label={`Row ${rowIndex + 1}, column ${colIndex + 1}`}
                   />
