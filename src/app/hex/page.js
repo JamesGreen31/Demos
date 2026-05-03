@@ -4,9 +4,9 @@ import { useMemo, useState } from 'react';
 
 const BOARD_SIZE = 11;
 
-const WIN_HIGHLIGHT = {
-  Blue: 'ring-4 ring-blue-500/95 shadow-[0_0_26px_rgba(59,130,246,0.75)]',
-  Red: 'ring-4 ring-red-500/95 shadow-[0_0_26px_rgba(239,68,68,0.75)]',
+const WIN_PATH_BACKGROUND = {
+  Blue: 'bg-blue-200 border-blue-300',
+  Red: 'bg-rose-200 border-rose-300',
 };
 
 function createBoard(size) {
@@ -196,11 +196,15 @@ export default function HexPage() {
                     disabled={Boolean(cell) || Boolean(game.winner)}
                     className={`hex-cell border border-slate-400 mx-[2px] transition-all ${
                       isBlue
-                        ? 'bg-blue-500 border-blue-600'
+                        ? isWinningCell
+                          ? WIN_PATH_BACKGROUND.Blue
+                          : 'bg-blue-500 border-blue-600'
                         : isRed
-                        ? 'bg-rose-500 border-rose-600'
+                        ? isWinningCell
+                          ? WIN_PATH_BACKGROUND.Red
+                          : 'bg-rose-500 border-rose-600'
                         : 'bg-slate-100 hover:bg-slate-200'
-                    } ${isWinningCell ? WIN_HIGHLIGHT[cell] : ''} ${game.winner ? 'cursor-default' : ''}`}
+                    } ${game.winner ? 'cursor-default' : ''}`}
                     style={borderStyle}
                     aria-label={`Row ${rowIndex + 1}, column ${colIndex + 1}`}
                   />
