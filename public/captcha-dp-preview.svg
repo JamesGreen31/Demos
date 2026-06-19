@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 300" role="img" aria-labelledby="title desc">
+  <title id="title">Captcha generator preview</title>
+  <desc id="desc">A noisy split captcha preview with colorful distorted characters.</desc>
+  <rect width="500" height="300" fill="#f3f3f3"/>
+  <path d="M250 0v300" stroke="#111827" stroke-opacity=".22" stroke-width="2"/>
+  <g opacity=".35" stroke-linecap="round">
+    <path d="M18 36 214 91M43 236 246 164M92 16 238 271M11 153 233 128" stroke="#ef4444"/>
+    <path d="M276 42C332 7 388 106 487 61M262 226C344 161 405 295 500 204" stroke="#0891b2" stroke-width="4" fill="none"/>
+    <path d="M285 121 492 41M273 267 480 141" stroke="#a855f7"/>
+  </g>
+  <g font-family="Arial, Verdana, sans-serif" font-weight="700" font-size="36">
+    <g transform="translate(42 158) rotate(-8)"><rect x="-8" y="-35" width="34" height="44" fill="#fff7b8" stroke="#111827" stroke-opacity=".35"/><text fill="#dc2626">C</text></g>
+    <text x="88" y="138" fill="#2563eb" transform="rotate(7 88 138)">k</text>
+    <text x="132" y="165" fill="#16a34a" transform="rotate(-5 132 165)">7</text>
+    <text x="178" y="145" fill="#9333ea" transform="rotate(9 178 145)">@</text>
+    <g transform="translate(300 158) rotate(6)"><rect x="-8" y="-38" width="34" height="44" fill="#c9ffd3" stroke="#111827" stroke-opacity=".35"/><text fill="#0891b2">G</text></g>
+    <text x="348" y="139" fill="#db2777" transform="rotate(-7 348 139)">m</text>
+    <text x="395" y="166" fill="#ea580c" transform="rotate(8 395 166)">4</text>
+    <text x="438" y="144" fill="#4f46e5" transform="rotate(-5 438 144)">!</text>
+  </g>
+  <g fill="#111827" opacity=".18" font-family="monospace" font-size="14">
+    <text x="274" y="28">A</text><text x="316" y="88">$</text><text x="462" y="118">r</text><text x="371" y="249">9</text><text x="421" y="63">!</text>
+  </g>
+</svg>
