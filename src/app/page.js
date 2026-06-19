@@ -65,6 +65,12 @@ export default function Home() {
       previewImage: '/lottery-hash-dp-preview.svg',
     },
     {
+      route: 'captcha-dp',
+      title: 'Captcha Generator Demo',
+      description: 'Generate noisy split-panel captchas from secure random passwords',
+      previewImage: '/captcha-dp-preview.svg',
+    },
+    {
       route: 'wasm-vs-js',
       title: 'WASM vs JS',
       description: 'Visualize the speed of WASM with recursive Fibonacci',
