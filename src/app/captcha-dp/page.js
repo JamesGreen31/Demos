@@ -231,6 +231,7 @@ function drawCaptcha(canvas) {
 }
 
 export default function CaptchaDemo() {
+  const demosHref = process.env.NODE_ENV === 'production' ? '/Demos' : '/';
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -239,6 +240,16 @@ export default function CaptchaDemo() {
 
   return (
     <main className="flex min-h-screen flex-col items-center p-8 gap-6">
+      <div className="w-full max-w-3xl flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => window.location.assign(demosHref)}
+          className="px-3 py-2 rounded bg-slate-200 hover:bg-slate-300 text-slate-800"
+        >
+          ← Back
+        </button>
+      </div>
+
       <section className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-xl">
         <div className="mb-5">
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-cyan-700">Demo Package</p>

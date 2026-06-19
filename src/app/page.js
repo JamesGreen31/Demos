@@ -65,12 +65,6 @@ export default function Home() {
       previewImage: '/lottery-hash-dp-preview.svg',
     },
     {
-      route: 'captcha-dp',
-      title: 'Captcha Generator Demo',
-      description: 'Generate noisy split-panel captchas from secure random passwords',
-      previewImage: '/captcha-dp-preview.svg',
-    },
-    {
       route: 'wasm-vs-js',
       title: 'WASM vs JS',
       description: 'Visualize the speed of WASM with recursive Fibonacci',
@@ -80,6 +74,12 @@ export default function Home() {
 
 
   const ckplaceTools = [
+    {
+      route: 'captcha-dp',
+      title: 'Captcha Generator Demo',
+      description: 'Generate noisy split-panel captchas from secure random passwords',
+      previewImage: '/captcha-dp-preview.svg',
+    },
     {
       route: 'ckplace-tools',
       title: 'ARC Compression Tool',
